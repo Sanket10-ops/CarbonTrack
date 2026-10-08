@@ -1,0 +1,28 @@
+# Maven / Java
+backend/target/
+
+# Node / React
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+backend/.env
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Compiled Java
+*.class

@@ -1,0 +1,27 @@
+postgres:
+  image: postgres:18
+  container_name: carbontrack-postgres
+  restart: unless-stopped
+  environment:
+    POSTGRES_DB: carbontrack
+    POSTGRES_USER: carbontrack
+    POSTGRES_PASSWORD: carbontrack_dev
+    TZ: Asia/Kolkata
+    PGTZ: Asia/Kolkata
+  ports:
+    - "5432:5432"
+  volumes:
+    - postgres_data:/var/lib/postgresql
+
+redis:
+  image: redis:8
+  container_name: carbontrack-redis
+  restart: unless-stopped
+  ports:
+    - "6379:6379"
+  volumes:
+    - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
