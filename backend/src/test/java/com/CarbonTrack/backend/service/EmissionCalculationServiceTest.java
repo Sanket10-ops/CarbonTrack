@@ -182,4 +182,51 @@ class EmissionCalculationServiceTest {
                 result
         );
     }
+
+    @Test
+    void rejectsNullEmissionFactorValue() {
+        EmissionFactor factor = new EmissionFactor(
+                "car_travel",
+                "km",
+                null,
+                "Unit test",
+                LocalDate.now()
+        );
+
+        when(repository.findByActivityTypeAndUnit("car_travel", "km"))
+                .thenReturn(Optional.of(factor));
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> service.calculateEmissions(
+                        "car_travel",
+                        "km",
+                        BigDecimal.ONE
+                )
+        );
+    }
+
+    @Test
+    void rejectsNegativeEmissionFactorValue() {
+        EmissionFactor factor = new EmissionFactor(
+                "car_travel",
+                "km",
+                new BigDecimal("-0.192"),
+                "Unit test",
+                LocalDate.now()
+        );
+
+        when(repository.findByActivityTypeAndUnit("car_travel", "km"))
+                .thenReturn(Optional.of(factor));
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> service.calculateEmissions(
+                        "car_travel",
+                        "km",
+                        BigDecimal.ONE
+                )
+        );
+    }
+
 }

@@ -29,17 +29,20 @@ public class ActivityLogService {
     }
 
     @Transactional
-    public ActivityLog createActivity(Long userId, CreateActivityRequest request) {
+    public ActivityLog createActivity(
+            String username, CreateActivityRequest request) {
+        validateCategory(request.category(), request.activityType());
 
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException(
-                        "User not found with ID: " + userId));
+                        "Authenticated user not found"));
 
-        BigDecimal co2eKg = emissionCalculationService.calculateEmissions(
-                request.activityType(),
-                request.unit(),
-                request.quantity()
-        );
+        BigDecimal co2eKg =
+                emissionCalculationService.calculateEmissions(
+                        request.activityType(),
+                        request.unit(),
+                        request.quantity()
+                );
 
         ActivityLog activityLog = new ActivityLog(
                 user,
@@ -55,14 +58,49 @@ public class ActivityLogService {
     }
 
     @Transactional(readOnly = true)
-    public List<ActivityLog> getActivitiesForUser(Long userId) {
+    public List<ActivityLog> getActivitiesForUser(String username) {
 
-        if (!userRepository.existsById(userId)) {
-            throw new IllegalArgumentException(
-                    "User not found with ID: " + userId);
-        }
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Authenticated user not found"));
 
         return activityLogRepository
-                .findByUserIdOrderByLogDateDesc(userId);
+                .findByUserIdOrderByLogDateDesc(user.getId());
     }
+
+    private void validateCategory(String category, String activityType) {
+        String normalizedCategory = category.toLowerCase();
+        String normalizedType = activityType.toLowerCase();
+
+        boolean valid = switch (normalizedCategory) {
+            case "transport" ->
+                    normalizedType.equals("car_travel")
+                            || normalizedType.equals("motorcycle_travel")
+                            || normalizedType.equals("bus_travel")
+                            || normalizedType.equals("train_travel");
+
+            case "electricity" ->
+                    normalizedType.equals("grid_electricity");
+
+            case "food" ->
+                    normalizedType.equals("beef")
+                            || normalizedType.equals("chicken")
+                            || normalizedType.equals("plant_based_food");
+
+            case "shopping" ->
+                    normalizedType.equals("clothing")
+                            || normalizedType.equals("electronics")
+                            || normalizedType.equals("paper")
+                            || normalizedType.equals("plastic");
+
+            default -> false;
+        };
+
+        if (!valid) {
+            throw new IllegalArgumentException(
+                    "Activity type '" + activityType
+                            + "' does not belong to category '" + category + "'");
+        }
+    }
+
 }

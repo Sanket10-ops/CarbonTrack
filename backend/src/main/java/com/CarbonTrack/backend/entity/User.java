@@ -3,14 +3,14 @@ package com.CarbonTrack.backend.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Table;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
 
@@ -37,6 +37,15 @@ public class User {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "org_id")
     private Organisation organisation;
+
+    @Column(name = "preferred_transport", length = 50)
+    private String preferredTransport;
+
+    @Column(name = "diet_preference", length = 50)
+    private String dietPreference;
+
+    @Column(name = "sustainability_goal", length = 100)
+    private String sustainabilityGoal;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -101,6 +110,30 @@ public class User {
 
     public void setOrganisation(Organisation organisation) {
         this.organisation = organisation;
+    }
+
+    public String getPreferredTransport() {
+        return preferredTransport;
+    }
+
+    public void setPreferredTransport(String preferredTransport) {
+        this.preferredTransport = preferredTransport;
+    }
+
+    public String getDietPreference() {
+        return dietPreference;
+    }
+
+    public void setDietPreference(String dietPreference) {
+        this.dietPreference = dietPreference;
+    }
+
+    public String getSustainabilityGoal() {
+        return sustainabilityGoal;
+    }
+
+    public void setSustainabilityGoal(String sustainabilityGoal) {
+        this.sustainabilityGoal = sustainabilityGoal;
     }
 
     public LocalDateTime getCreatedAt() {

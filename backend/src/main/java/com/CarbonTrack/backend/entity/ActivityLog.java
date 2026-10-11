@@ -9,6 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 import java.math.BigDecimal;
@@ -60,6 +61,7 @@ public class ActivityLog {
             String unit,
             BigDecimal co2eKg,
             LocalDate logDate) {
+
         this.user = user;
         this.category = category;
         this.activityType = activityType;
@@ -67,6 +69,13 @@ public class ActivityLog {
         this.unit = unit;
         this.co2eKg = co2eKg;
         this.logDate = logDate;
+    }
+
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
     }
 
     public Long getId() {
