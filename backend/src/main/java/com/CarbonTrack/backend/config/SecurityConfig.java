@@ -1,4 +1,3 @@
-
 package com.CarbonTrack.backend.config;
 
 import jakarta.servlet.DispatcherType;
@@ -23,19 +22,35 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http)
-            throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http) throws Exception {
 
         http
-            .csrf(csrf -> csrf.disable())
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(authorize -> authorize
-                .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
-                .requestMatchers("/api/auth/**", "/error").permitAll()
-                .anyRequest().authenticated())
-            .oauth2ResourceServer(oauth2 -> oauth2
-                .jwt(Customizer.withDefaults()));
+                .csrf(csrf -> csrf.disable())
+
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(
+                                SessionCreationPolicy.STATELESS))
+
+                .authorizeHttpRequests(authorize -> authorize
+                        .dispatcherTypeMatchers(DispatcherType.ERROR)
+                        .permitAll()
+
+                        .requestMatchers(
+                                "/api/auth/register",
+                                "/api/auth/login",
+                                "/actuator/health",
+                                "/error",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**"
+                        ).permitAll()
+
+                        .anyRequest().authenticated()
+                )
+
+                .oauth2ResourceServer(oauth2 ->
+                        oauth2.jwt(Customizer.withDefaults()));
 
         return http.build();
     }
