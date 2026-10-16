@@ -14,36 +14,36 @@ import java.time.LocalDate;
 
 public record CreateActivityRequest(
 
-        @NotBlank(message = "Category is required")
+        @NotBlank(message = "Category is required.")
         @Pattern(
                 regexp = "transport|electricity|food|shopping",
                 flags = Pattern.Flag.CASE_INSENSITIVE,
-                message = "Category must be transport, electricity, food, or shopping"
+                message = "Invalid category. Allowed categories: transport, electricity, food, shopping."
         )
         String category,
 
-        @NotBlank(message = "Activity type is required")
-        @Size(max = 100, message = "Activity type must not exceed 100 characters")
+        @NotBlank(message = "Activity type is required.")
+        @Size(max = 100, message = "Activity type must not exceed 100 characters.")
         String activityType,
 
-        @NotNull(message = "Quantity is required")
+        @NotNull(message = "Quantity is required.")
         @DecimalMin(
                 value = "0.0",
                 inclusive = true,
-                message = "Quantity cannot be negative"
+                message = "Quantity must be greater than or equal to 0."
         )
         @DecimalMax(
                 value = "99999999.9999",
-                message = "Quantity exceeds the maximum allowed value"
+                message = "Quantity exceeds the maximum allowed value."
         )
         BigDecimal quantity,
 
-        @NotBlank(message = "Unit is required")
-        @Size(max = 50, message = "Unit must not exceed 50 characters")
+        @NotBlank(message = "Unit is required.")
+        @Size(max = 50, message = "Unit must not exceed 50 characters.")
         String unit,
 
-        @NotNull(message = "Activity date is required")
-        @PastOrPresent(message = "Activity date cannot be in the future")
+        @NotNull(message = "Activity date is required.")
+        @PastOrPresent(message = "Activity date cannot be in the future.")
         LocalDate logDate
 ) {
 }
