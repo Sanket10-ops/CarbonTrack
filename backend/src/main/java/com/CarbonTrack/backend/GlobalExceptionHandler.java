@@ -59,4 +59,19 @@ public class GlobalExceptionHandler {
 
         return Map.of("error", error);
     }
+
+    // Handle invalid activity types, units, and other invalid arguments.
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, String> handleIllegalArgument(
+            IllegalArgumentException ex) {
+
+        String message = ex.getMessage();
+
+        if (message == null || message.isBlank()) {
+            message = "Invalid request.";
+        }
+
+        return Map.of("error", message);
+    }
 }
