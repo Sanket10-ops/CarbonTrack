@@ -47,6 +47,12 @@ public class User {
     @Column(name = "sustainability_goal", length = 100)
     private String sustainabilityGoal;
 
+    @Column(name = "preferred_units", nullable = false, length = 20)
+    private String preferredUnits = "metric";
+
+    @Column(name = "goal_visibility", nullable = false)
+    private boolean goalVisibility = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -134,6 +140,22 @@ public class User {
 
     public void setSustainabilityGoal(String sustainabilityGoal) {
         this.sustainabilityGoal = sustainabilityGoal;
+    }
+
+    public String getPreferredUnits() {
+        return preferredUnits;
+    }
+
+    public void setPreferredUnits(String preferredUnits) {
+        this.preferredUnits = preferredUnits;
+    }
+
+    public boolean isGoalVisibility() {
+        return goalVisibility;
+    }
+
+    public void setGoalVisibility(boolean goalVisibility) {
+        this.goalVisibility = goalVisibility;
     }
 
     public LocalDateTime getCreatedAt() {

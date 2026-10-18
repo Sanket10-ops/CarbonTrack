@@ -1,6 +1,6 @@
-
 package com.CarbonTrack.backend.dto;
 
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record UpdateUserProfileRequest(
@@ -12,7 +12,15 @@ public record UpdateUserProfileRequest(
         String dietPreference,
 
         @Size(max = 100, message = "Sustainability goal must not exceed 100 characters")
-        String sustainabilityGoal
+        String sustainabilityGoal,
+
+        @Pattern(
+                regexp = "(?i)metric|imperial",
+                message = "Preferred units must be metric or imperial"
+        )
+        String preferredUnits,
+
+        Boolean goalVisibility
 
 ) {
 }

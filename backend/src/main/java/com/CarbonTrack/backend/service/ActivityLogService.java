@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class ActivityLogService {
@@ -31,27 +32,48 @@ public class ActivityLogService {
     @Transactional
     public ActivityLog createActivity(
             String username, CreateActivityRequest request) {
-        validateCategory(request.category(), request.activityType());
+
+        String category = request.category().toLowerCase(Locale.ROOT);
+        String activityType = request.activityType().toLowerCase(Locale.ROOT);
+
+        validateCategory(category, activityType);
+        validateCategoryDetails(category, activityType, request);
 
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Authenticated user not found"));
 
-        BigDecimal co2eKg =
-                emissionCalculationService.calculateEmissions(
-                        request.activityType(),
-                        request.unit(),
-                        request.quantity()
-                );
+        BigDecimal quantity = request.quantity();
+        String unit = request.unit();
+
+        if ("transport".equals(category) && "flight_travel".equals(activityType)) {
+            if (request.flightDistanceKm() == null) {
+                throw new IllegalArgumentException(
+                        "Flight distance is required for flight travel");
+            }
+            quantity = request.flightDistanceKm();
+            unit = "passenger-km";
+        }
+
+        BigDecimal co2eKg = emissionCalculationService.calculateEmissions(
+                activityType, unit, quantity);
 
         ActivityLog activityLog = new ActivityLog(
                 user,
-                request.category().toLowerCase(),
-                request.activityType(),
-                request.quantity(),
-                request.unit(),
+                category,
+                activityType,
+                quantity,
+                unit,
                 co2eKg,
-                request.logDate()
+                request.logDate(),
+                request.energySource(),
+                request.mealType(),
+                request.servings(),
+                request.productCategory(),
+                request.spendAmount(),
+                request.spendCurrency() == null
+                        ? null : request.spendCurrency().toUpperCase(Locale.ROOT),
+                request.flightDistanceKm()
         );
 
         return activityLogRepository.save(activityLog);
@@ -59,40 +81,78 @@ public class ActivityLogService {
 
     @Transactional(readOnly = true)
     public List<ActivityLog> getActivitiesForUser(String username) {
-
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Authenticated user not found"));
 
-        return activityLogRepository
-                .findByUserIdOrderByLogDateDesc(user.getId());
+        return activityLogRepository.findByUserIdOrderByLogDateDesc(user.getId());
+    }
+
+    private void validateCategoryDetails(
+            String category, String activityType, CreateActivityRequest request) {
+
+        switch (category) {
+            case "transport" -> {
+                if ("flight_travel".equals(activityType)) {
+                    requirePresent(request.flightDistanceKm(), "Flight distance");
+                    rejectPresent(request.energySource(), "Energy source");
+                    rejectPresent(request.mealType(), "Meal type");
+                    rejectPresent(request.servings(), "Servings");
+                    rejectPresent(request.productCategory(), "Product category");
+                    rejectPresent(request.spendAmount(), "Spend amount");
+                    rejectPresent(request.spendCurrency(), "Spend currency");
+                } else {
+                    rejectPresent(request.flightDistanceKm(), "Flight distance");
+                    rejectPresent(request.energySource(), "Energy source");
+                    rejectPresent(request.mealType(), "Meal type");
+                    rejectPresent(request.servings(), "Servings");
+                    rejectPresent(request.productCategory(), "Product category");
+                    rejectPresent(request.spendAmount(), "Spend amount");
+                    rejectPresent(request.spendCurrency(), "Spend currency");
+                }
+            }
+            case "electricity" -> {
+                requireText(request.energySource(), "Energy source");
+                rejectPresent(request.mealType(), "Meal type");
+                rejectPresent(request.servings(), "Servings");
+                rejectPresent(request.productCategory(), "Product category");
+                rejectPresent(request.spendAmount(), "Spend amount");
+                rejectPresent(request.spendCurrency(), "Spend currency");
+                rejectPresent(request.flightDistanceKm(), "Flight distance");
+            }
+            case "food" -> {
+                requireText(request.mealType(), "Meal type");
+                requirePresent(request.servings(), "Servings");
+                rejectPresent(request.energySource(), "Energy source");
+                rejectPresent(request.productCategory(), "Product category");
+                rejectPresent(request.spendAmount(), "Spend amount");
+                rejectPresent(request.spendCurrency(), "Spend currency");
+                rejectPresent(request.flightDistanceKm(), "Flight distance");
+            }
+            case "shopping" -> {
+                requireText(request.productCategory(), "Product category");
+                requirePresent(request.spendAmount(), "Spend amount");
+                requireText(request.spendCurrency(), "Spend currency");
+                rejectPresent(request.energySource(), "Energy source");
+                rejectPresent(request.mealType(), "Meal type");
+                rejectPresent(request.servings(), "Servings");
+                rejectPresent(request.flightDistanceKm(), "Flight distance");
+            }
+            default -> throw new IllegalArgumentException("Unsupported category");
+        }
     }
 
     private void validateCategory(String category, String activityType) {
-        String normalizedCategory = category.toLowerCase();
-        String normalizedType = activityType.toLowerCase();
-
-        boolean valid = switch (normalizedCategory) {
+        boolean valid = switch (category) {
             case "transport" ->
-                    normalizedType.equals("car_travel")
-                            || normalizedType.equals("motorcycle_travel")
-                            || normalizedType.equals("bus_travel")
-                            || normalizedType.equals("train_travel");
-
-            case "electricity" ->
-                    normalizedType.equals("grid_electricity");
-
+                    List.of("car_travel", "motorcycle_travel", "bus_travel",
+                            "train_travel", "flight_travel").contains(activityType);
+            case "electricity" -> "grid_electricity".equals(activityType);
             case "food" ->
-                    normalizedType.equals("beef")
-                            || normalizedType.equals("chicken")
-                            || normalizedType.equals("plant_based_food");
-
+                    List.of("beef", "chicken", "plant_based_food").contains(activityType);
             case "shopping" ->
-                    normalizedType.equals("clothing")
-                            || normalizedType.equals("electronics")
-                            || normalizedType.equals("paper")
-                            || normalizedType.equals("plastic");
-
+                    List.of("clothing", "electronics", "paper", "plastic")
+                            .contains(activityType);
             default -> false;
         };
 
@@ -103,4 +163,22 @@ public class ActivityLogService {
         }
     }
 
+    private void requireText(String value, String field) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(field + " is required");
+        }
+    }
+
+    private void requirePresent(BigDecimal value, String field) {
+        if (value == null) {
+            throw new IllegalArgumentException(field + " is required");
+        }
+    }
+
+    private void rejectPresent(Object value, String field) {
+        if (value != null) {
+            throw new IllegalArgumentException(
+                    field + " is not applicable to this activity category");
+        }
+    }
 }

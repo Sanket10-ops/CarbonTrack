@@ -48,6 +48,12 @@ public class UserController {
         user.setPreferredTransport(request.preferredTransport());
         user.setDietPreference(request.dietPreference());
         user.setSustainabilityGoal(request.sustainabilityGoal());
+        if (request.preferredUnits() != null) {
+            user.setPreferredUnits(request.preferredUnits().toLowerCase(java.util.Locale.ROOT));
+        }
+        if (request.goalVisibility() != null) {
+            user.setGoalVisibility(request.goalVisibility());
+        }
 
         User savedUser = userRepository.save(user);
         return toProfileResponse(savedUser);
@@ -77,7 +83,9 @@ public class UserController {
                 user.getCreatedAt(),
                 user.getPreferredTransport(),
                 user.getDietPreference(),
-                user.getSustainabilityGoal()
+                user.getSustainabilityGoal(),
+                user.getPreferredUnits(),
+                user.isGoalVisibility()
         );
     }
 }

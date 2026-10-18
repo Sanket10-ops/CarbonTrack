@@ -1,4 +1,3 @@
-
 package com.CarbonTrack.backend.dto;
 
 import java.time.LocalDateTime;
@@ -11,6 +10,8 @@ public record UserProfileResponse(
         LocalDateTime createdAt,
         String preferredTransport,
         String dietPreference,
-        String sustainabilityGoal
+        String sustainabilityGoal,
+        String preferredUnits,
+        boolean goalVisibility
 ) {
 }

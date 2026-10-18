@@ -46,6 +46,27 @@ public class ActivityLog {
     @Column(name = "log_date", nullable = false)
     private LocalDate logDate;
 
+    @Column(name = "energy_source", length = 50)
+    private String energySource;
+
+    @Column(name = "meal_type", length = 50)
+    private String mealType;
+
+    @Column(name = "servings", precision = 10, scale = 2)
+    private BigDecimal servings;
+
+    @Column(name = "product_category", length = 100)
+    private String productCategory;
+
+    @Column(name = "spend_amount", precision = 12, scale = 2)
+    private BigDecimal spendAmount;
+
+    @Column(name = "spend_currency", length = 3)
+    private String spendCurrency;
+
+    @Column(name = "flight_distance_km", precision = 12, scale = 2)
+    private BigDecimal flightDistanceKm;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -60,7 +81,14 @@ public class ActivityLog {
             BigDecimal quantity,
             String unit,
             BigDecimal co2eKg,
-            LocalDate logDate) {
+            LocalDate logDate,
+            String energySource,
+            String mealType,
+            BigDecimal servings,
+            String productCategory,
+            BigDecimal spendAmount,
+            String spendCurrency,
+            BigDecimal flightDistanceKm) {
 
         this.user = user;
         this.category = category;
@@ -69,6 +97,13 @@ public class ActivityLog {
         this.unit = unit;
         this.co2eKg = co2eKg;
         this.logDate = logDate;
+        this.energySource = energySource;
+        this.mealType = mealType;
+        this.servings = servings;
+        this.productCategory = productCategory;
+        this.spendAmount = spendAmount;
+        this.spendCurrency = spendCurrency;
+        this.flightDistanceKm = flightDistanceKm;
     }
 
     @PrePersist
@@ -78,39 +113,20 @@ public class ActivityLog {
         }
     }
 
-    public Long getId() {
-        return id;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public String getCategory() {
-        return category;
-    }
-
-    public String getActivityType() {
-        return activityType;
-    }
-
-    public BigDecimal getQuantity() {
-        return quantity;
-    }
-
-    public String getUnit() {
-        return unit;
-    }
-
-    public BigDecimal getCo2eKg() {
-        return co2eKg;
-    }
-
-    public LocalDate getLogDate() {
-        return logDate;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
+    public Long getId() { return id; }
+    public User getUser() { return user; }
+    public String getCategory() { return category; }
+    public String getActivityType() { return activityType; }
+    public BigDecimal getQuantity() { return quantity; }
+    public String getUnit() { return unit; }
+    public BigDecimal getCo2eKg() { return co2eKg; }
+    public LocalDate getLogDate() { return logDate; }
+    public String getEnergySource() { return energySource; }
+    public String getMealType() { return mealType; }
+    public BigDecimal getServings() { return servings; }
+    public String getProductCategory() { return productCategory; }
+    public BigDecimal getSpendAmount() { return spendAmount; }
+    public String getSpendCurrency() { return spendCurrency; }
+    public BigDecimal getFlightDistanceKm() { return flightDistanceKm; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
 }
