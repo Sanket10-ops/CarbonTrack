@@ -8,6 +8,7 @@ import com.CarbonTrack.backend.repository.ActivityLogRepository;
 import com.CarbonTrack.backend.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.cache.annotation.CacheEvict;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -29,6 +30,7 @@ public class ActivityLogService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = "footprintAnalytics", allEntries = true)
     public ActivityLog createActivity(
             String username, CreateActivityRequest request) {
         validateCategory(request.category(), request.activityType());
