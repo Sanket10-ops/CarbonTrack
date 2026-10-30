@@ -111,9 +111,8 @@ public class GoalService {
                     ? "ACHIEVED"
                     : "MISSED";
         } else {
-            status = reductionPct.compareTo(goal.getTargetReductionPct()) >= 0
-                    ? "ACHIEVED"
-                    : "IN_PROGRESS";
+            // Reaching the target early does not complete a time-bound goal.
+            status = "IN_PROGRESS";
         }
 
         return new GoalProgressResponse(
