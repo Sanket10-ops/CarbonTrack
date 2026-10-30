@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -12,6 +13,25 @@ public interface ActivityLogRepository
         extends JpaRepository<ActivityLog, Long> {
 
     List<ActivityLog> findByUserIdOrderByLogDateDesc(Long userId);
+
+    long countByUserId(Long userId);
+
+    @Query("""
+            select coalesce(sum(a.co2eKg), 0)
+            from ActivityLog a
+            where a.user.id = :userId
+            """)
+    BigDecimal sumEmissionsByUserId(@Param("userId") Long userId);
+
+    @Query("""
+            select coalesce(sum(a.co2eKg), 0)
+            from ActivityLog a
+            where a.user.goalVisibility = true
+              and a.logDate between :startDate and :endDate
+            """)
+    BigDecimal sumOptedInUserEmissionsByDateRange(
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
 
     List<ActivityLog> findByUserIdAndLogDateBetweenOrderByLogDateDesc(
             Long userId,
