@@ -1,0 +1,62 @@
+name: Backend CI
+
+on:
+  push:
+    branches:
+      - main
+      - "feature/**"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  backend-tests:
+    name: Backend build and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: carbontrack
+          POSTGRES_USER: carbontrack
+          POSTGRES_PASSWORD: carbontrack_dev
+          TZ: Asia/Kolkata
+          PGTZ: Asia/Kolkata
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U carbontrack -d carbontrack"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:8
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+
+      - name: Run backend tests
+        working-directory: backend
+        run: |
+          chmod +x mvnw
+          ./mvnw --batch-mode --no-transfer-progress clean verify
