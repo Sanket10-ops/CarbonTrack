@@ -1,4 +1,3 @@
-
 package com.CarbonTrack.backend.dto;
 
 import jakarta.validation.constraints.DecimalMax;
@@ -7,7 +6,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
@@ -27,7 +25,6 @@ public record CreateActivityRequest(
         @Size(max = 100, message = "Activity type must not exceed 100 characters.")
         String activityType,
 
-<<<<<<< HEAD
         @NotNull(message = "Quantity is required.")
         @DecimalMin(
                 value = "0.0",
@@ -38,59 +35,63 @@ public record CreateActivityRequest(
                 value = "99999999.9999",
                 message = "Quantity exceeds the maximum allowed value."
         )
-=======
-        @NotNull(message = "Quantity is required")
-        @DecimalMin(value = "0.0", inclusive = true,
-                message = "Quantity cannot be negative")
-        @DecimalMax(value = "99999999.9999",
-                message = "Quantity exceeds the maximum allowed value")
->>>>>>> 48d12f2 (feat: complete CarbonTrack milestone 1 updates)
         BigDecimal quantity,
 
         @NotBlank(message = "Unit is required.")
         @Size(max = 50, message = "Unit must not exceed 50 characters.")
         String unit,
 
-<<<<<<< HEAD
         @NotNull(message = "Activity date is required.")
         @PastOrPresent(message = "Activity date cannot be in the future.")
-        LocalDate logDate
-) {
-}
-=======
-        @NotNull(message = "Activity date is required")
-        @PastOrPresent(message = "Activity date cannot be in the future")
         LocalDate logDate,
 
-        @Size(max = 50, message = "Energy source must not exceed 50 characters")
+        @Size(max = 50, message = "Energy source must not exceed 50 characters.")
         String energySource,
 
-        @Size(max = 50, message = "Meal type must not exceed 50 characters")
+        @Size(max = 50, message = "Meal type must not exceed 50 characters.")
         String mealType,
 
-        @DecimalMin(value = "0.0", inclusive = false,
-                message = "Servings must be greater than zero")
-        @DecimalMax(value = "99999999.99",
-                message = "Servings exceeds the maximum allowed value")
+        @DecimalMin(
+                value = "0.0",
+                inclusive = false,
+                message = "Servings must be greater than zero."
+        )
+        @DecimalMax(
+                value = "99999999.99",
+                message = "Servings exceeds the maximum allowed value."
+        )
         BigDecimal servings,
 
-        @Size(max = 100, message = "Product category must not exceed 100 characters")
+        @Size(max = 100, message = "Product category must not exceed 100 characters.")
         String productCategory,
 
-        @DecimalMin(value = "0.0", inclusive = true,
-                message = "Spend amount cannot be negative")
-        @DecimalMax(value = "9999999999.99",
-                message = "Spend amount exceeds the maximum allowed value")
+        @DecimalMin(
+                value = "0.0",
+                inclusive = true,
+                message = "Spend amount cannot be negative."
+        )
+        @DecimalMax(
+                value = "9999999999.99",
+                message = "Spend amount exceeds the maximum allowed value."
+        )
         BigDecimal spendAmount,
 
-        @Pattern(regexp = "[A-Za-z]{3}",
-                message = "Spend currency must be a three-letter currency code")
+        @Pattern(
+                regexp = "[A-Za-z]{3}",
+                message = "Spend currency must be a three-letter currency code."
+        )
         String spendCurrency,
 
-        @DecimalMin(value = "0.0", inclusive = true,
-                message = "Flight distance cannot be negative")
-        @DecimalMax(value = "9999999999.99",
-                message = "Flight distance exceeds the maximum allowed value")
+        @DecimalMin(
+                value = "0.0",
+                inclusive = true,
+                message = "Flight distance cannot be negative."
+        )
+        @DecimalMax(
+                value = "9999999999.99",
+                message = "Flight distance exceeds the maximum allowed value."
+        )
         BigDecimal flightDistanceKm
-) {}
->>>>>>> 48d12f2 (feat: complete CarbonTrack milestone 1 updates)
+
+) {
+}
