@@ -2,6 +2,7 @@ package com.CarbonTrack.backend.controller;
 
 import com.CarbonTrack.backend.dto.CreateGoalRequest;
 import com.CarbonTrack.backend.dto.GoalProgressResponse;
+import com.CarbonTrack.backend.dto.GoalResponse;
 import com.CarbonTrack.backend.entity.Goal;
 import com.CarbonTrack.backend.service.GoalService;
 import jakarta.validation.Valid;
@@ -19,15 +20,22 @@ public class GoalController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Goal create(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CreateGoalRequest request) {
-        return service.create(jwt.getSubject(), request);
+    public GoalResponse create(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CreateGoalRequest request) {
+        return toResponse(service.create(jwt.getSubject(), request));
     }
 
     @GetMapping
-    public List<Goal> list(@AuthenticationPrincipal Jwt jwt) { return service.list(jwt.getSubject()); }
+    public List<GoalResponse> list(@AuthenticationPrincipal Jwt jwt) {
+        return service.list(jwt.getSubject()).stream().map(this::toResponse).toList();
+    }
 
     @GetMapping("/{id}/progress")
     public GoalProgressResponse progress(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
         return service.progress(jwt.getSubject(), id);
+    }
+
+    private GoalResponse toResponse(Goal goal) {
+        return new GoalResponse(goal.getId(), goal.getTargetReductionPct(), goal.getPeriodDays(),
+                goal.getStartDate(), goal.getStatus());
     }
 }
