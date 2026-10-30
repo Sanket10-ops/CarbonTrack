@@ -1,4 +1,3 @@
-
 package com.CarbonTrack.backend.repository;
 
 import com.CarbonTrack.backend.entity.User;
@@ -11,4 +10,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByUsername(String username);
 
     Optional<User> findByEmail(String email);
+
+    long countByGoalVisibilityTrue();
 }
