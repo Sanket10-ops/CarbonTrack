@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { api, clearToken, getToken, setToken } from "./api.js";
 
 const NAV = [
@@ -163,6 +163,7 @@ function App() {
   const [activityForm, setActivityForm] = useState({ category: "transport", activityType: "car_travel", quantity: "", logDate: today(), energySource: "grid", mealType: "lunch", servings: "", productCategory: "clothing", spendAmount: "", spendCurrency: "INR", flightDistanceKm: "" });
   const [goalForm, setGoalForm] = useState({ targetReductionPct: "20", periodDays: "30", startDate: today() });
   const [profileForm, setProfileForm] = useState({ preferredTransport: "", dietPreference: "", sustainabilityGoal: "", preferredUnits: "metric", goalVisibility: false });
+  const dataRequestId = useRef(0);
 
   useEffect(() => {
     const unauthorized = () => { setAuthenticated(false); setUsername(""); setAuthError("Your session expired. Please sign in again."); };
@@ -176,21 +177,30 @@ function App() {
   }, [notice]);
 
   async function refreshData() {
+    const requestId = ++dataRequestId.current;
     const labels = ["activities", "analytics", "goals", "recommendations", "badges", "profile"];
     const results = await Promise.allSettled([api.activities(), api.analytics(period, startDate, endDate), api.goals(), api.recommendations(), api.badges(), api.profile()]);
+    if (requestId !== dataRequestId.current) return;
+
     const failed = [];
     results.forEach((r, i) => { if (r.status === "rejected") failed.push(labels[i] + ": " + (r.reason?.message || "Could not load")); });
-    if (results[0].status === "fulfilled") setActivities(Array.isArray(results[0].value) ? results[0].value : []);
-    if (results[1].status === "fulfilled") setAnalytics(results[1].value);
+    let nextGoals;
     if (results[2].status === "fulfilled") {
       const list = Array.isArray(results[2].value) ? results[2].value : [];
-      setGoals(await Promise.all(list.map(async (g) => { try { return { ...g, progress: await api.goalProgress(g.id) }; } catch (e) { return { ...g, progressError: e.message }; } })));
+      nextGoals = await Promise.all(list.map(async (g) => { try { return { ...g, progress: await api.goalProgress(g.id) }; } catch (e) { return { ...g, progressError: e.message }; } }));
     }
+    if (requestId !== dataRequestId.current) return;
+
+    if (results[0].status === "fulfilled") setActivities(Array.isArray(results[0].value) ? results[0].value : []);
+    if (results[1].status === "fulfilled") setAnalytics(results[1].value);
+    if (nextGoals) setGoals(nextGoals);
     if (results[3].status === "fulfilled") setRecommendations(results[3].value);
     if (results[4].status === "fulfilled") setBadges(results[4].value);
     if (results[5].status === "fulfilled") {
-      const p = results[5].value; setProfile(p); setUsername(p.username || username);
-      setProfileForm({ preferredTransport: p.preferredTransport || "", dietPreference: p.dietPreference || "", sustainabilityGoal: p.sustainabilityGoal || "", preferredUnits: p.preferredUnits || "metric", goalVisibility: Boolean(p.goalVisibility) });
+      const p = results[5].value;
+      setProfile(p);
+      setUsername(p.username || username);
+      setProfileForm({ preferredTransport: p.preferredTransport || "", dietPreference: p.dietPreference || "", sustainabilityGoal: p.sustainabilityGoal || "", preferredUnits: "metric", goalVisibility: Boolean(p.goalVisibility) });
     }
     setWarnings(failed);
   }
@@ -246,7 +256,7 @@ function App() {
   async function submitProfile(e) {
     e.preventDefault(); setBusy(true); setActionError("");
     try {
-      const p = await api.updateProfile({ preferredTransport: profileForm.preferredTransport || null, dietPreference: profileForm.dietPreference || null, sustainabilityGoal: profileForm.sustainabilityGoal || null, preferredUnits: profileForm.preferredUnits, goalVisibility: profileForm.goalVisibility });
+      const p = await api.updateProfile({ preferredTransport: profileForm.preferredTransport || null, dietPreference: profileForm.dietPreference || null, sustainabilityGoal: profileForm.sustainabilityGoal || null, preferredUnits: "metric", goalVisibility: profileForm.goalVisibility });
       setProfile(p); setNotice("Preferences saved.");
     } catch (err) { setActionError(err.message); } finally { setBusy(false); }
   }
@@ -426,7 +436,7 @@ function App() {
               <Field label="Preferred transport"><select value={profileForm.preferredTransport} onChange={(e) => setProfileForm((v) => ({ ...v, preferredTransport: e.target.value }))}><option value="">Not specified</option><option value="walking">Walking</option><option value="cycling">Cycling</option><option value="public_transport">Public transport</option><option value="car">Car</option><option value="motorcycle">Motorcycle</option><option value="train">Train</option></select></Field>
               <Field label="Diet preference"><select value={profileForm.dietPreference} onChange={(e) => setProfileForm((v) => ({ ...v, dietPreference: e.target.value }))}><option value="">Not specified</option><option value="omnivore">Omnivore</option><option value="vegetarian">Vegetarian</option><option value="vegan">Vegan</option><option value="pescatarian">Pescatarian</option></select></Field>
               <Field label="Sustainability focus"><select value={profileForm.sustainabilityGoal} onChange={(e) => setProfileForm((v) => ({ ...v, sustainabilityGoal: e.target.value }))}><option value="">Not specified</option><option value="reduce_transport_emissions">Reduce transport emissions</option><option value="reduce_energy_use">Reduce energy use</option><option value="eat_more_plant_based">Eat more plant-based meals</option><option value="shop_consciously">Shop more consciously</option><option value="overall_reduction">Overall footprint reduction</option></select></Field>
-              <Field label="Preferred units"><select value={profileForm.preferredUnits} onChange={(e) => setProfileForm((v) => ({ ...v, preferredUnits: e.target.value }))}><option value="metric">Metric</option><option value="imperial">Imperial</option></select></Field>
+              <Field label="Measurement system"><div className="fixed-setting"><b>Metric system</b><span>kg · km · kWh</span></div></Field>
             </div><div className="settings-divider" /><div className="privacy-setting"><div><b>Community benchmark visibility</b><p>Allow your aggregate emissions to contribute to the community average. Change this at any time.</p></div><label className="toggle"><input type="checkbox" checked={profileForm.goalVisibility} onChange={(e) => setProfileForm((v) => ({ ...v, goalVisibility: e.target.checked }))} /><span /></label></div>
             <div className="preferences-footer"><small>▣ Privacy sharing is disabled by default.</small><Button type="submit" disabled={busy}>{busy ? "Saving…" : "Save preferences →"}</Button></div>
           </form>
