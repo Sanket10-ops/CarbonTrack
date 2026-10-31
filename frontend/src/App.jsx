@@ -31,6 +31,20 @@ const dateLabel = (v, opts = { day: "numeric", month: "short", year: "numeric" }
   return Number.isNaN(d.getTime()) ? v : d.toLocaleDateString(undefined, opts);
 };
 const words = (v = "") => v.replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase());
+function downloadActivitiesCsv(rows) {
+  const headers = ["ID", "Date", "Category", "Activity", "Quantity", "Unit", "Emissions (kg CO2e)"];
+  const values = rows.map((a) => [a.id, a.logDate, words(a.category), words(a.activityType), a.quantity, a.unit, a.co2eKg]);
+  const csv = [headers, ...values].map((row) => row.map((value) => '"' + String(value ?? "").replaceAll('"', '""') + '"').join(",")).join("\r\n");
+  const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "carbontrack-activities-" + today() + ".csv";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 const currentUserFromToken = (token) => {
   try { return JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).sub || ""; }
   catch { return ""; }
@@ -143,8 +157,10 @@ function App() {
   const [notice, setNotice] = useState("");
   const [warnings, setWarnings] = useState([]);
   const [showActivityForm, setShowActivityForm] = useState(false);
+  const [activitySearch, setActivitySearch] = useState("");
+  const [activityCategory, setActivityCategory] = useState("all");
   const [mobileNav, setMobileNav] = useState(false);
-  const [activityForm, setActivityForm] = useState({ category: "transport", activityType: "car_travel", quantity: "8", logDate: today(), energySource: "grid", mealType: "lunch", servings: "1", productCategory: "clothing", spendAmount: "", spendCurrency: "INR", flightDistanceKm: "" });
+  const [activityForm, setActivityForm] = useState({ category: "transport", activityType: "car_travel", quantity: "", logDate: today(), energySource: "grid", mealType: "lunch", servings: "", productCategory: "clothing", spendAmount: "", spendCurrency: "INR", flightDistanceKm: "" });
   const [goalForm, setGoalForm] = useState({ targetReductionPct: "20", periodDays: "30", startDate: today() });
   const [profileForm, setProfileForm] = useState({ preferredTransport: "", dietPreference: "", sustainabilityGoal: "", preferredUnits: "metric", goalVisibility: false });
 
@@ -217,7 +233,7 @@ function App() {
     if (flight) payload.flightDistanceKm = Number(activityForm.flightDistanceKm);
     try {
       await api.createActivity(payload); setNotice("Activity saved and emissions calculated."); setShowActivityForm(false);
-      setActivityForm({ category: "transport", activityType: "car_travel", quantity: "8", logDate: today(), energySource: "grid", mealType: "lunch", servings: "1", productCategory: "clothing", spendAmount: "", spendCurrency: "INR", flightDistanceKm: "" });
+      setActivityForm({ category: "transport", activityType: "car_travel", quantity: "", logDate: today(), energySource: "grid", mealType: "lunch", servings: "", productCategory: "clothing", spendAmount: "", spendCurrency: "INR", flightDistanceKm: "" });
       await refreshData();
     } catch (err) { setActionError(err.message); }
     finally { setBusy(false); }
@@ -240,6 +256,25 @@ function App() {
   }
 
   const activeGoals = goals.filter((g) => (g.progress?.status || g.status) === "IN_PROGRESS").length;
+  const trackedDays = useMemo(() => new Set(activities.map((a) => a.logDate)).size, [activities]);
+  const leadingCategory = useMemo(() => (analytics?.categoryTotals || [])
+    .filter((row) => Number(row.totalEmissionsKg || 0) > 0)
+    .sort((a, b) => Number(b.totalEmissionsKg) - Number(a.totalEmissionsKg))[0] || null, [analytics]);
+  const currentGoal = goals.find((g) => (g.progress?.status || g.status) === "IN_PROGRESS");
+  const filteredActivities = useMemo(() => {
+    const query = activitySearch.trim().toLowerCase();
+    return activities.filter((activity) => {
+      const categoryMatch = activityCategory === "all" || activity.category === activityCategory;
+      const searchMatch = !query || [activity.activityType, activity.category, activity.logDate, activity.id]
+        .some((value) => String(value ?? "").toLowerCase().includes(query));
+      return categoryMatch && searchMatch;
+    });
+  }, [activities, activitySearch, activityCategory]);
+  function exportActivities() {
+    if (!filteredActivities.length) return;
+    downloadActivitiesCsv(filteredActivities);
+    setNotice("CSV export prepared for " + filteredActivities.length + " activities.");
+  }
   const pageLabel = NAV.find((n) => n[0] === page)?.[1] || "Overview";
   const greeting = useMemo(() => new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 17 ? "Good afternoon" : "Good evening", []);
   const firstName = (username || "there").split(/[._-]/)[0];
@@ -260,19 +295,60 @@ function App() {
         {actionError && <div className="alert alert-error">{actionError}<button onClick={() => setActionError("")}>×</button></div>}
 
         {page === "overview" && <>
-          <PageHeading kicker="YOUR IMPACT, IN FOCUS" title={greeting + ", " + firstName + "."} subtitle="A clear view of your footprint and the progress you're making." action={<Button onClick={() => { go("activity"); setShowActivityForm(true); }}>＋ Log activity</Button>} />
+          <section className="dashboard-hero">
+            <div className="hero-copy">
+              <span className="hero-eyebrow">CARBONTRACK / PERSONAL IMPACT</span>
+              <h1>{greeting}, {firstName}.</h1>
+              <p>Your footprint is measurable. Your next improvement starts with one small action.</p>
+              <div className="hero-actions">
+                <Button onClick={() => { go("activity"); setShowActivityForm(true); }}>＋ Log activity</Button>
+                <button className="hero-link" onClick={() => go("recommendations")}>Explore recommendations <span>→</span></button>
+              </div>
+            </div>
+            <div className="hero-stat">
+              <span className="hero-stat-label">EMISSIONS IN SELECTED RANGE</span>
+              <strong>{kg(analytics?.totalEmissionsKg, 1)} <small>kg CO₂e</small></strong>
+              <span className="hero-stat-range">{dateLabel(startDate, { day: "numeric", month: "short" })} – {dateLabel(endDate, { day: "numeric", month: "short" })}</span>
+              <div className="hero-stat-divider" />
+              <div className="hero-stat-bottom">
+                <div><b>{leadingCategory ? words(leadingCategory.category) : "—"}</b><small>Leading category</small></div>
+                <div><b>{trackedDays}</b><small>Days tracked</small></div>
+              </div>
+            </div>
+            <span className="hero-decoration hero-decoration-one" />
+            <span className="hero-decoration hero-decoration-two" />
+          </section>
           <div className="metric-grid">
-            <Metric label="Emissions in range" value={kg(analytics?.totalEmissionsKg)} unit="kg CO₂e" detail={dateLabel(startDate, { day: "numeric", month: "short" }) + " – " + dateLabel(endDate, { day: "numeric", month: "short" })} tone="green" />
             <Metric label="Activities tracked" value={activities.length} unit="entries" detail="Across your activity log" tone="blue" />
+            <Metric label="Active tracking days" value={trackedDays} unit="days" detail="Distinct days with an entry" tone="green" />
             <Metric label="Goals in progress" value={activeGoals} unit="active" detail={goals.length + " total goals"} tone="amber" />
             <Metric label="Badges earned" value={badges.length} unit="awards" detail="Milestones from your activity" tone="rose" />
           </div>
           <div className="overview-grid">
             <section className="surface trend-card"><div className="surface-title"><div><span className="kicker">EMISSIONS OVER TIME</span><h2>Your footprint trend</h2></div><select value={period} onChange={(e) => setPeriod(e.target.value)}><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
-              <div className="date-filter"><label>From <input type="date" value={startDate} max={endDate} onChange={(e) => setStartDate(e.target.value)} /></label><label>To <input type="date" value={endDate} min={startDate} max={today()} onChange={(e) => setEndDate(e.target.value)} /></label><button onClick={refreshData} title="Refresh">↻</button></div>
+              <div className="date-filter">
+                <div className="range-pills" aria-label="Quick date range">
+                  <button className={startDate === daysAgo(6) ? "selected" : ""} onClick={() => { setStartDate(daysAgo(6)); setEndDate(today()); }}>7D</button>
+                  <button className={startDate === daysAgo(29) ? "selected" : ""} onClick={() => { setStartDate(daysAgo(29)); setEndDate(today()); }}>30D</button>
+                  <button className={startDate === daysAgo(89) ? "selected" : ""} onClick={() => { setStartDate(daysAgo(89)); setEndDate(today()); }}>90D</button>
+                </div>
+                <label>From <input type="date" value={startDate} max={endDate} onChange={(e) => setStartDate(e.target.value)} /></label>
+                <label>To <input type="date" value={endDate} min={startDate} max={today()} onChange={(e) => setEndDate(e.target.value)} /></label>
+                <button onClick={refreshData} title="Refresh data" aria-label="Refresh data">↻</button>
+              </div>
               <TrendChart points={analytics?.timeline || []} />
             </section>
             <section className="surface category-card"><div className="surface-title"><div><span className="kicker">WHERE IT COMES FROM</span><h2>Category breakdown</h2></div></div><CategoryChart rows={analytics?.categoryTotals || []} /><p className="chart-foot">Based on recorded emissions in the selected date range.</p></section>
+          </div>
+          <div className="insight-strip">
+            <section className="surface insight-card">
+              <div className="insight-heading"><span className="insight-icon">✳</span><span className="kicker">A PRACTICAL NEXT STEP</span></div>
+              {recommendations[0] ? <><h3>{recommendations[0].title}</h3><p>{recommendations[0].action}</p><button className="link-btn" onClick={() => go("recommendations")}>See all recommendations →</button></> : <><h3>Build your first insight</h3><p>Log a few activities to receive suggestions based on your own footprint.</p><button className="link-btn" onClick={() => { go("activity"); setShowActivityForm(true); }}>Log an activity →</button></>}
+            </section>
+            <section className="surface insight-card goal-insight">
+              <div className="insight-heading"><span className="insight-icon">◎</span><span className="kicker">GOAL CHECK-IN</span></div>
+              {currentGoal ? <><h3>{currentGoal.targetReductionPct}% reduction target</h3><p>{kg(currentGoal.progress?.reductionPct, 1)}% reduction achieved over a {currentGoal.periodDays}-day goal period.</p><div className="progress-track"><i style={{ width: Math.max(0, Math.min(100, Number(currentGoal.progress?.reductionPct || 0) / Number(currentGoal.targetReductionPct || 1) * 100)) + "%" }} /></div><button className="link-btn" onClick={() => go("goals")}>Review goal progress →</button></> : <><h3>Choose a goal to work toward</h3><p>A time-bound reduction target makes your progress easier to measure.</p><button className="link-btn" onClick={() => go("goals")}>Create a goal →</button></>}
+            </section>
           </div>
           <section className="surface recent-card"><div className="surface-title"><div><span className="kicker">YOUR LATEST RECORDS</span><h2>Recent activity</h2></div><button className="link-btn" onClick={() => go("activity")}>View activity log →</button></div><ActivityTable rows={activities.slice(0, 5)} compact onAll={() => go("activity")} /></section>
           {loading && <div className="loading"><span /> Refreshing your data…</div>}
@@ -284,7 +360,7 @@ function App() {
             <form className="form-grid" onSubmit={submitActivity}>
               <Field label="Category"><select value={activityForm.category} onChange={(e) => { const category = e.target.value; setActivityForm((v) => ({ ...v, category, activityType: TYPES[category][0][0] })); }}><option value="transport">Transport</option><option value="electricity">Electricity</option><option value="food">Food</option><option value="shopping">Shopping</option></select></Field>
               <Field label="Activity"><select value={activityForm.activityType} onChange={(e) => setActivityForm((v) => ({ ...v, activityType: e.target.value }))}>{TYPES[activityForm.category].map((t) => <option key={t[0]} value={t[0]}>{t[1]}</option>)}</select></Field>
-              {activityForm.activityType === "flight_travel" ? <Field label="Flight distance (km)"><input type="number" min="0.01" step="0.01" required value={activityForm.flightDistanceKm} onChange={(e) => setActivityForm((v) => ({ ...v, flightDistanceKm: e.target.value }))} /></Field> : <Field label="Quantity"><input type="number" min="0" step="0.01" required value={activityForm.quantity} onChange={(e) => setActivityForm((v) => ({ ...v, quantity: e.target.value }))} /></Field>}
+              {activityForm.activityType === "flight_travel" ? <Field label="Flight distance (km)"><input type="number" min="0.01" step="0.01" required value={activityForm.flightDistanceKm} onChange={(e) => setActivityForm((v) => ({ ...v, flightDistanceKm: e.target.value }))} /></Field> : <Field label="Quantity"><input type="number" min="0.01" step="0.01" required value={activityForm.quantity} onChange={(e) => setActivityForm((v) => ({ ...v, quantity: e.target.value }))} /></Field>}
               <Field label="Unit"><input readOnly value={TYPES[activityForm.category].find((t) => t[0] === activityForm.activityType)?.[2] || ""} /></Field>
               <Field label="Activity date"><input type="date" max={today()} required value={activityForm.logDate} onChange={(e) => setActivityForm((v) => ({ ...v, logDate: e.target.value }))} /></Field>
               {activityForm.category === "electricity" && <Field label="Energy source"><input readOnly value="Grid electricity (configured emission factor)" /></Field>}
@@ -293,7 +369,18 @@ function App() {
               <div className="form-actions"><Button type="button" kind="quiet" onClick={() => setShowActivityForm(false)}>Cancel</Button><Button type="submit" disabled={busy}>{busy ? "Saving…" : "Save activity →"}</Button></div>
             </form>
           </section>}
-          <section className="surface table-card"><div className="surface-title"><div><span className="kicker">ALL RECORDS</span><h2>Recorded activities <small className="count">{activities.length}</small></h2></div></div><ActivityTable rows={activities} /></section>
+          <section className="surface table-card">
+            <div className="surface-title activity-table-heading"><div><span className="kicker">ALL RECORDS</span><h2>Recorded activities <small className="count">{filteredActivities.length} / {activities.length}</small></h2></div>
+              <Button kind="secondary" onClick={exportActivities} disabled={!filteredActivities.length}>↓ Export CSV</Button>
+            </div>
+            <div className="activity-toolbar">
+              <label className="activity-search"><span>⌕</span><input type="search" placeholder="Search activities, category or date…" value={activitySearch} onChange={(e) => setActivitySearch(e.target.value)} /></label>
+              <label className="activity-category-filter"><span>Category</span><select value={activityCategory} onChange={(e) => setActivityCategory(e.target.value)}><option value="all">All categories</option><option value="transport">Transport</option><option value="electricity">Electricity</option><option value="food">Food</option><option value="shopping">Shopping</option></select></label>
+              {(activitySearch || activityCategory !== "all") && <button className="clear-filter" onClick={() => { setActivitySearch(""); setActivityCategory("all"); }}>Clear filters</button>}
+            </div>
+            <ActivityTable rows={filteredActivities} />
+            {!filteredActivities.length && activities.length > 0 && <div className="filter-empty">No records match those filters. Try a different search or clear the filters.</div>}
+          </section>
         </>}
 
         {page === "goals" && <>
