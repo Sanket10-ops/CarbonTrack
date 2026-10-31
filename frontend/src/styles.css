@@ -454,3 +454,7 @@ td small { color: #9ba69e; font-size: 9px; }
   .activity-category-filter { flex: 1; }
   .activity-category-filter select { width: 100%; }
 }
+
+.fixed-setting { min-height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 12px; border: 1px solid #e1e8e1; border-radius: 9px; color: #41594a; background: #f7faf6; font-size: 11px; }
+.fixed-setting b { font-weight: 700; }
+.fixed-setting span { color: #89978d; font-size: 10px; }
