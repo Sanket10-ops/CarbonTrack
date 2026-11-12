@@ -206,6 +206,8 @@ function GoalProjectionCard({ projection, goal }) {
     ? Math.max(0, Math.min(100, projection.targetTotal / projection.baselineTotal * 100)) : 0;
   const projectedWidth = projection.baselineTotal > 0
     ? Math.max(0, Math.min(100, projection.projectedFinal / projection.baselineTotal * 100)) : 0;
+  const currentUsageWidth = projection.targetTotal > 0
+    ? Math.max(0, Math.min(100, projection.currentObserved / projection.targetTotal * 100)) : 0;
   return <section className="surface projection-card">
     <div className="surface-title">
       <div><span className="kicker">GOAL FORECAST</span><h2>Projected goal outcome</h2></div>
@@ -214,8 +216,13 @@ function GoalProjectionCard({ projection, goal }) {
     <p className="projection-intro">A pace-based estimate using emissions recorded so far in your active {goal.periodDays}-day goal. It is a projection, not a guaranteed result.</p>
     <div className="projection-stats">
       <div><span>Allowed goal footprint</span><b>{kg(projection.targetTotal)} kg</b></div>
+      <div><span>Current footprint so far</span><b>{kg(projection.currentObserved)} kg</b></div>
       <div><span>Projected at current pace</span><b>{kg(projection.projectedFinal)} kg</b></div>
       <div><span>Days remaining</span><b>{projection.remainingDays}</b></div>
+    </div>
+    <div className="goal-current-progress">
+      <div><span>Current emissions budget used</span><b>{kg(projection.currentObserved)} / {kg(projection.targetTotal)} kg CO₂e</b></div>
+      <div className="progress-track"><i style={{ width: currentUsageWidth + "%" }} /></div>
     </div>
     <div className="projection-track" role="img" aria-label="Projected final emissions compared with the allowed goal footprint">
       <i className="projection-target" style={{ width: targetWidth + "%" }} />
@@ -527,6 +534,7 @@ function App() {
     return {
       baselineTotal,
       targetTotal,
+      currentObserved,
       projectedFinal,
       remainingDays,
       dailyReductionNeeded,
