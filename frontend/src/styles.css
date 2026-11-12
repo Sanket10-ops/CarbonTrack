@@ -458,3 +458,148 @@ td small { color: #9ba69e; font-size: 9px; }
 .fixed-setting { min-height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 12px; border: 1px solid #e1e8e1; border-radius: 9px; color: #41594a; background: #f7faf6; font-size: 11px; }
 .fixed-setting b { font-weight: 700; }
 .fixed-setting span { color: #89978d; font-size: 10px; }
+
+
+/* Milestone 3 personal dashboard insights */
+.m3-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 15px 0;
+}
+.m3-summary-card {
+  min-width: 0;
+  padding: 17px 18px;
+}
+.m3-summary-card > .kicker { display: block; }
+.m3-summary-card > strong {
+  display: block;
+  margin: 10px 0 6px;
+  color: #2e4939;
+  font: 800 24px Manrope, sans-serif;
+  letter-spacing: -.7px;
+  overflow-wrap: anywhere;
+}
+.m3-summary-card > strong small {
+  color: #87958b;
+  font: 600 10px "DM Sans", sans-serif;
+  letter-spacing: 0;
+}
+.m3-summary-card > p {
+  min-height: 30px;
+  margin: 0;
+  color: #87958b;
+  font-size: 10px;
+  line-height: 1.55;
+}
+.m3-month-summary .progress-track { margin: 10px 0 8px; }
+.m3-month-summary .m3-no-target { margin-top: 10px; }
+.weekly-card, .projection-card {
+  padding: 19px 21px;
+  margin: 0 0 16px;
+}
+.weekly-chart-legend, .projection-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 17px;
+  margin: 6px 0 8px;
+  color: #829087;
+  font-size: 10px;
+}
+.weekly-chart-legend span, .projection-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.weekly-chart-legend i, .projection-legend i {
+  display: inline-block;
+  width: 17px;
+  height: 3px;
+  border-radius: 4px;
+}
+.weekly-current-key, .weekly-line.current { stroke: #4d8a70; background: #4d8a70; }
+.weekly-previous-key, .weekly-line.previous { stroke: #c99e42; background: #c99e42; }
+.weekly-comparison-svg {
+  display: block;
+  width: 100%;
+  min-height: 175px;
+  overflow: visible;
+}
+.weekly-line {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.weekly-line.previous { stroke-dasharray: 6 5; opacity: .9; }
+.weekly-dot { stroke: white; stroke-width: 2; }
+.weekly-dot.current { fill: #4d8a70; }
+.weekly-dot.previous { fill: #c99e42; }
+.projection-intro {
+  margin: 0 0 16px;
+  color: #849189;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.projection-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.projection-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #edf1ed;
+  border-radius: 10px;
+  background: #fafcfa;
+}
+.projection-stats span { color: #8b998f; font-size: 9px; }
+.projection-stats b {
+  color: #385642;
+  font: 800 17px Manrope, sans-serif;
+  overflow-wrap: anywhere;
+}
+.projection-track {
+  position: relative;
+  height: 11px;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #edf1ed;
+}
+.projection-track i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: block;
+  border-radius: inherit;
+}
+.projection-track .projection-target { z-index: 1; background: #c5d9c9; }
+.projection-track .projection-current { z-index: 2; background: #4d8a70; opacity: .9; }
+.projection-target-key { background: #c5d9c9; }
+.projection-current-key { background: #4d8a70; }
+.projection-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  margin-top: 14px;
+  font-size: 10px;
+}
+.projection-footer b { color: #4b7057; }
+.projection-footer span { color: #8c9a90; }
+@media (max-width: 1100px) {
+  .m3-dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 620px) {
+  .m3-dashboard-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .m3-summary-card { padding: 13px; }
+  .m3-summary-card > strong { font-size: 20px; }
+  .weekly-card, .projection-card { padding: 15px 13px; }
+  .projection-stats { grid-template-columns: 1fr 1fr; }
+  .projection-stats > div:first-child { grid-column: 1 / -1; }
+  .weekly-comparison-svg { min-height: 150px; }
+}
