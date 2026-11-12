@@ -60,6 +60,7 @@ public class UserController {
         if (request.organisationReportingOptIn() != null) {
             user.setOrganisationReportingOptIn(request.organisationReportingOptIn());
         }
+        user.setMonthlyTargetKg(request.monthlyTargetKg());
 
         User savedUser = userRepository.save(user);
         return toProfileResponse(savedUser);
@@ -94,6 +95,7 @@ public class UserController {
                 user.isGoalVisibility(),
                 user.isLeaderboardOptIn(),
                 user.isOrganisationReportingOptIn(),
+                user.getMonthlyTargetKg(),
                 user.getOrganisation() == null ? null : user.getOrganisation().getId(),
                 user.getOrganisation() == null ? null : user.getOrganisation().getName()
         );
