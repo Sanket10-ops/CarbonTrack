@@ -158,8 +158,9 @@ function WeeklyComparisonChart({ activities = [] }) {
   const totals = (date) => sumActivityEmissions(
     activities.filter((activity) => String(activity.logDate || "").slice(0, 10) === date)
   );
+  const currentWeekday = (dateFromIso(today()).getDay() + 6) % 7;
   const current = days.map((day) => totals(day.current));
-  const previous = days.map((day) => totals(day.previous));
+  const previous = days.map((day, index) => index <= currentWeekday ? totals(day.previous) : 0);
   const max = Math.max(0.1, ...current, ...previous);
   const x = (index) => 48 + index * 86;
   const y = (value) => 16 + (150 - (value / max) * 128);
@@ -459,7 +460,7 @@ function App() {
       expectedToDate: monthlyTarget * elapsedDays / daysInMonth,
       daysInMonth,
       elapsedDays,
-      hasTarget: monthlyTarget > 0,
+      hasTarget: Boolean(currentGoal) && baselineDaily > 0,
       monthStart,
       activityCount: monthRows.length
     };
@@ -613,7 +614,7 @@ function App() {
               {monthMetrics.hasTarget
                 ? <>
                     <strong>{kg(monthMetrics.actual, 2)} <small>/ {kg(monthMetrics.monthlyTarget, 2)} kg</small></strong>
-                    <div className="progress-track"><i style={{ width: Math.min(100, monthMetrics.actual / monthMetrics.monthlyTarget * 100) + "%" }} /></div>
+                    <div className="progress-track"><i style={{ width: monthMetrics.monthlyTarget > 0 ? Math.min(100, monthMetrics.actual / monthMetrics.monthlyTarget * 100) + "%" : "0%" }} /></div>
                     <p>{kg(monthMetrics.expectedToDate, 2)} kg expected by day {monthMetrics.elapsedDays} · target derived from your active goal</p>
                   </>
                 : <p className="m3-no-target">Create an active goal and record a baseline to see a goal-based monthly target.</p>}
