@@ -8,6 +8,7 @@ import com.CarbonTrack.backend.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
 
@@ -54,8 +55,8 @@ class OrganisationServiceTest {
 
         OrganisationService service = new OrganisationService(
                 organisations, users, activities);
-        LocalDate from = LocalDate.of(2026, 11, 1);
-        LocalDate to = LocalDate.of(2026, 11, 30);
+        LocalDate to = LocalDate.now();
+        LocalDate from = to.withDayOfMonth(1);
 
         var report = service.dashboard("admin", from, to);
 
@@ -63,6 +64,6 @@ class OrganisationServiceTest {
         assertEquals("Example Org", report.organisationName());
         assertEquals(0, report.employees().size());
         assertEquals(1, report.monthTrend().size());
-        assertEquals("2026-11", report.monthTrend().get(0).month());
+        assertEquals(YearMonth.from(to).toString(), report.monthTrend().get(0).month());
     }
 }
