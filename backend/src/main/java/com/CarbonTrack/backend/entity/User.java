@@ -12,6 +12,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -58,6 +59,9 @@ public class User {
 
     @Column(name = "organisation_reporting_opt_in", nullable = false)
     private boolean organisationReportingOptIn = false;
+
+    @Column(name = "monthly_target_kg", precision = 12, scale = 2)
+    private BigDecimal monthlyTargetKg;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -178,6 +182,14 @@ public class User {
 
     public void setOrganisationReportingOptIn(boolean organisationReportingOptIn) {
         this.organisationReportingOptIn = organisationReportingOptIn;
+    }
+
+    public BigDecimal getMonthlyTargetKg() {
+        return monthlyTargetKg;
+    }
+
+    public void setMonthlyTargetKg(BigDecimal monthlyTargetKg) {
+        this.monthlyTargetKg = monthlyTargetKg;
     }
 
     public LocalDateTime getCreatedAt() {
