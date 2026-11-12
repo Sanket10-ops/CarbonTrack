@@ -1,5 +1,6 @@
 package com.CarbonTrack.backend.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public record UserProfileResponse(
@@ -15,6 +16,7 @@ public record UserProfileResponse(
         boolean goalVisibility,
         boolean leaderboardOptIn,
         boolean organisationReportingOptIn,
+        BigDecimal monthlyTargetKg,
         Long organisationId,
         String organisationName
 ) {
