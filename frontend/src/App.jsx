@@ -150,6 +150,7 @@ function App() {
   const [endDate, setEndDate] = useState(today());
   const [analytics, setAnalytics] = useState(null);
   const [activities, setActivities] = useState([]);
+  const [emissionFactors, setEmissionFactors] = useState([]);
   const [goals, setGoals] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
   const [badges, setBadges] = useState([]);
@@ -191,8 +192,8 @@ function App() {
 
   async function refreshData() {
     const requestId = ++dataRequestId.current;
-    const labels = ["activities", "analytics", "goals", "recommendations", "badges", "profile"];
-    const results = await Promise.allSettled([api.activities(), api.analytics(period, startDate, endDate), api.goals(), api.recommendations(), api.badges(), api.profile()]);
+    const labels = ["activities", "analytics", "goals", "recommendations", "badges", "profile", "emission factors"];
+    const results = await Promise.allSettled([api.activities(), api.analytics(period, startDate, endDate), api.goals(), api.recommendations(), api.badges(), api.profile(), api.emissionFactors()]);
     if (requestId !== dataRequestId.current) return;
 
     const failed = [];
@@ -222,6 +223,9 @@ function App() {
         leaderboardOptIn: Boolean(p.leaderboardOptIn),
         organisationReportingOptIn: Boolean(p.organisationReportingOptIn)
       });
+    }
+    if (results[6].status === "fulfilled") {
+      setEmissionFactors(Array.isArray(results[6].value) ? results[6].value : []);
     }
     setWarnings(failed);
   }
@@ -257,7 +261,13 @@ function App() {
     e.preventDefault(); setBusy(true); setActionError("");
     const type = TYPES[activityForm.category].find((t) => t[0] === activityForm.activityType);
     const flight = activityForm.activityType === "flight_travel";
-    const payload = { category: activityForm.category, activityType: activityForm.activityType, quantity: Number(flight ? activityForm.flightDistanceKm : activityForm.quantity), unit: type[2], logDate: activityForm.logDate };
+    const factor = emissionFactors.find((item) => item.activityType === activityForm.activityType);
+    if (!type || !factor) {
+      setActionError("A configured emission factor was not found for this activity. Refresh the page or choose another activity.");
+      setBusy(false);
+      return;
+    }
+    const payload = { category: activityForm.category, activityType: activityForm.activityType, quantity: Number(flight ? activityForm.flightDistanceKm : activityForm.quantity), unit: factor.unit, logDate: activityForm.logDate };
     if (activityForm.category === "electricity") payload.energySource = activityForm.energySource;
     if (activityForm.category === "food") { payload.mealType = activityForm.mealType; payload.servings = Number(activityForm.servings); }
     if (activityForm.category === "shopping") { payload.productCategory = activityForm.productCategory; payload.spendAmount = Number(activityForm.spendAmount); payload.spendCurrency = activityForm.spendCurrency; }
@@ -305,6 +315,24 @@ function App() {
     .filter((row) => Number(row.totalEmissionsKg || 0) > 0)
     .sort((a, b) => Number(b.totalEmissionsKg) - Number(a.totalEmissionsKg))[0] || null, [analytics]);
   const currentGoal = goals.find((g) => (g.progress?.status || g.status) === "IN_PROGRESS");
+  const selectedActivityType = TYPES[activityForm.category].find((t) => t[0] === activityForm.activityType);
+  const selectedEmissionFactor = emissionFactors.find((factor) =>
+    factor.activityType === activityForm.activityType
+    && factor.unit === selectedActivityType?.[2]);
+  const previewQuantity = Number(activityForm.activityType === "flight_travel"
+    ? activityForm.flightDistanceKm : activityForm.quantity);
+  const emissionPreview = selectedEmissionFactor && Number.isFinite(previewQuantity) && previewQuantity > 0
+    ? previewQuantity * Number(selectedEmissionFactor.kgCo2ePerUnit)
+    : null;
+  const quickLogItems = useMemo(() => {
+    const seen = new Set();
+    return activities.filter((activity) => {
+      const key = activity.category + ":" + activity.activityType;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, 5);
+  }, [activities]);
   const filteredActivities = useMemo(() => {
     const query = activitySearch.trim().toLowerCase();
     return activities.filter((activity) => {
@@ -314,6 +342,23 @@ function App() {
       return categoryMatch && searchMatch;
     });
   }, [activities, activitySearch, activityCategory]);
+  function useQuickLog(activity) {
+    setActivityForm({
+      category: activity.category,
+      activityType: activity.activityType,
+      quantity: String(activity.quantity ?? ""),
+      logDate: today(),
+      energySource: activity.energySource || "grid",
+      mealType: activity.mealType || "lunch",
+      servings: String(activity.servings ?? ""),
+      productCategory: activity.productCategory || "clothing",
+      spendAmount: String(activity.spendAmount ?? ""),
+      spendCurrency: activity.spendCurrency || "INR",
+      flightDistanceKm: String(activity.flightDistanceKm ?? "")
+    });
+    setShowActivityForm(true);
+    setActionError("");
+  }
   function exportActivities() {
     if (!filteredActivities.length) return;
     downloadActivitiesCsv(filteredActivities);
@@ -400,16 +445,48 @@ function App() {
 
         {page === "activity" && <>
           <PageHeading kicker="BUILD A CLEARER PICTURE" title="Activity log" subtitle="Record everyday choices. CarbonTrack calculates the associated CO₂e using your configured emission factors." action={<Button onClick={() => setShowActivityForm((v) => !v)}>＋ Add activity</Button>} />
+          {quickLogItems.length > 0 && <section className="surface quick-log-card">
+            <div className="surface-title"><div><span className="kicker">QUICK LOG</span><h2>Repeat a recent activity</h2></div><span className="tag">Prefilled for review</span></div>
+            <div className="quick-log-list">{quickLogItems.map((item) => (
+              <button className="quick-log-item" type="button" key={item.id} onClick={() => useQuickLog(item)}>
+                <span>{CATEGORIES[item.category]?.symbol || "•"}</span>
+                <b>{words(item.activityType)}</b>
+                <small>{kg(item.quantity)} {item.unit}</small>
+                <em>{kg(item.co2eKg, 3)} kg CO₂e last time</em>
+              </button>
+            ))}</div>
+          </section>}
           {showActivityForm && <section className="surface form-card"><div className="surface-title"><div><span className="kicker">NEW ENTRY</span><h2>Log an activity</h2></div><button className="close-form" onClick={() => setShowActivityForm(false)}>×</button></div>
+            <div className="activity-category-tabs" role="group" aria-label="Activity category">
+              {Object.entries(CATEGORIES).map(([category, info]) => <button
+                type="button"
+                key={category}
+                className={activityForm.category === category ? "selected" : ""}
+                onClick={() => setActivityForm((current) => ({
+                  ...current,
+                  category,
+                  activityType: TYPES[category][0][0],
+                  quantity: "",
+                  flightDistanceKm: "",
+                  servings: "",
+                  spendAmount: ""
+                }))}
+              >{info.label}</button>)}
+            </div>
             <form className="form-grid" onSubmit={submitActivity}>
               <Field label="Category"><select value={activityForm.category} onChange={(e) => { const category = e.target.value; setActivityForm((v) => ({ ...v, category, activityType: TYPES[category][0][0] })); }}><option value="transport">Transport</option><option value="electricity">Electricity</option><option value="food">Food</option><option value="shopping">Shopping</option></select></Field>
               <Field label="Activity"><select value={activityForm.activityType} onChange={(e) => setActivityForm((v) => ({ ...v, activityType: e.target.value }))}>{TYPES[activityForm.category].map((t) => <option key={t[0]} value={t[0]}>{t[1]}</option>)}</select></Field>
               {activityForm.activityType === "flight_travel" ? <Field label="Flight distance (km)"><input type="number" min="0.01" step="0.01" required value={activityForm.flightDistanceKm} onChange={(e) => setActivityForm((v) => ({ ...v, flightDistanceKm: e.target.value }))} /></Field> : <Field label="Quantity"><input type="number" min="0.01" step="0.01" required value={activityForm.quantity} onChange={(e) => setActivityForm((v) => ({ ...v, quantity: e.target.value }))} /></Field>}
-              <Field label="Unit"><input readOnly value={TYPES[activityForm.category].find((t) => t[0] === activityForm.activityType)?.[2] || ""} /></Field>
+              <Field label="Unit"><input readOnly value={selectedEmissionFactor?.unit || selectedActivityType?.[2] || ""} /></Field>
               <Field label="Activity date"><input type="date" max={today()} required value={activityForm.logDate} onChange={(e) => setActivityForm((v) => ({ ...v, logDate: e.target.value }))} /></Field>
               {activityForm.category === "electricity" && <Field label="Energy source"><input readOnly value="Grid electricity (configured emission factor)" /></Field>}
               {activityForm.category === "food" && <><Field label="Meal"><select value={activityForm.mealType} onChange={(e) => setActivityForm((v) => ({ ...v, mealType: e.target.value }))}><option value="breakfast">Breakfast</option><option value="lunch">Lunch</option><option value="dinner">Dinner</option><option value="snack">Snack</option></select></Field><Field label="Servings"><input type="number" min="0.01" step="0.01" required value={activityForm.servings} onChange={(e) => setActivityForm((v) => ({ ...v, servings: e.target.value }))} /></Field></>}
               {activityForm.category === "shopping" && <><Field label="Product category"><select value={activityForm.productCategory} onChange={(e) => setActivityForm((v) => ({ ...v, productCategory: e.target.value }))}><option value="clothing">Clothing</option><option value="electronics">Electronics</option><option value="paper">Paper</option><option value="plastic">Plastic</option></select></Field><Field label="Spend amount"><input type="number" min="0" step="0.01" required value={activityForm.spendAmount} onChange={(e) => setActivityForm((v) => ({ ...v, spendAmount: e.target.value }))} /></Field><Field label="Currency"><select value={activityForm.spendCurrency} onChange={(e) => setActivityForm((v) => ({ ...v, spendCurrency: e.target.value }))}><option value="INR">INR</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option></select></Field></>}
+              <div className="emission-preview" aria-live="polite">
+                <span>Estimated emissions preview</span>
+                <b>{emissionPreview === null ? "Enter a quantity to preview" : kg(emissionPreview, 4) + " kg CO₂e"}</b>
+                <small>{selectedEmissionFactor ? selectedEmissionFactor.source || "Configured backend emission factor" : "Waiting for a configured factor from the backend"}. The server recalculates the final total when you save.</small>
+              </div>
               <div className="form-actions"><Button type="button" kind="quiet" onClick={() => setShowActivityForm(false)}>Cancel</Button><Button type="submit" disabled={busy}>{busy ? "Saving…" : "Save activity →"}</Button></div>
             </form>
           </section>}

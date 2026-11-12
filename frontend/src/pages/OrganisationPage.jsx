@@ -99,7 +99,7 @@ export default function OrganisationPage({ profile, onProfileRefresh }) {
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
-      URL.revokeObjectURL(url);
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       setNotice("CSR report downloaded.");
     } catch (err) {
       setError(err.message || "Could not export the report.");

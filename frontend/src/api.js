@@ -59,6 +59,7 @@ export const api = {
     body: JSON.stringify({ username, email, password })
   }),
   activities: () => request("/api/activities"),
+  emissionFactors: () => request("/api/emission-factors"),
   createActivity: (payload) => request("/api/activities", {
     method: "POST",
     body: JSON.stringify(payload)
@@ -107,6 +108,10 @@ export const api = {
       throw new Error("Cannot reach CarbonTrack API. Start the backend and retry.");
     }
     if (!response.ok) {
+      if (response.status === 401) {
+        clearToken();
+        window.dispatchEvent(new Event("carbontrack:unauthorized"));
+      }
       const payload = await response.json().catch(() => null);
       throw new Error(payload?.message || payload?.error || `Report export failed (${response.status})`);
     }

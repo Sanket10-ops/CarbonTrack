@@ -36,3 +36,23 @@
   .m3-category-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .m3-consent-note { align-items: flex-start; flex-direction: column; }
 }
+
+.quick-log-card { padding: 19px 21px; margin-bottom: 16px; }
+.quick-log-card .surface-title { margin-bottom: 13px; }
+.quick-log-list { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; }
+.quick-log-item { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; padding: 12px; border: 1px solid #e9eee9; border-radius: 10px; background: #fbfcfa; text-align: left; cursor: pointer; }
+.quick-log-item:hover { border-color: #a8c3ad; background: #f5faf4; }
+.quick-log-item > span { display: grid; place-items: center; width: 27px; height: 27px; border-radius: 8px; background: #eaf2e9; color: #4c805d; font-size: 15px; }
+.quick-log-item b { overflow: hidden; max-width: 100%; color: #46594c; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.quick-log-item small, .quick-log-item em { color: #8b988e; font-size: 9px; font-style: normal; }
+.quick-log-item em { color: #5a8865; }
+.activity-category-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 17px; }
+.activity-category-tabs button { padding: 8px 13px; border: 1px solid #e5ebe5; border-radius: 9px; background: #fff; color: #7e8c81; font-size: 10px; font-weight: 600; cursor: pointer; }
+.activity-category-tabs button.selected { border-color: #b8d0bb; background: #edf5ed; color: #3e714f; }
+.emission-preview { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 5px; padding: 14px 15px; border: 1px solid #e1ebe1; border-radius: 11px; background: #f7faf6; }
+.emission-preview span { color: #809087; font-size: 10px; font-weight: 600; }
+.emission-preview b { color: #315c43; font: 800 18px Manrope, sans-serif; }
+.emission-preview small { color: #96a197; font-size: 9px; line-height: 1.5; }
+.m3-privacy-options { display: grid; gap: 17px; }
+@media (max-width: 1000px) { .quick-log-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 650px) { .quick-log-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

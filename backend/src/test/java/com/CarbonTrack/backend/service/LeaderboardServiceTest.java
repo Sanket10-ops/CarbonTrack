@@ -40,8 +40,7 @@ class LeaderboardServiceTest {
         assertEquals(1, result.get(0).rank());
         assertEquals(new BigDecimal("4.25"), result.get(0).totalCo2eKg());
         assertEquals("transport", result.get(0).strongestCategory());
-        assertEquals(true, result.get(0).displayAlias().startsWith("Eco-"));
-        assertEquals(false, result.get(0).displayAlias().contains("10"));
+        assertEquals(true, result.get(0).displayAlias().matches("Eco-[0-9A-F]{16}"));
     }
 
     private LeaderboardActivityProjection row(Long userId, String category, String total) {

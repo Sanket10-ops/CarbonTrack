@@ -64,6 +64,7 @@ public class LeaderboardService {
         if (byUser.isEmpty()) return List.of();
 
         List<Long> userIds = new ArrayList<>(byUser.keySet());
+        userIds.sort(Long::compareTo);
         Map<Long, List<String>> badgeNames = new HashMap<>();
         List<UserBadgeNameProjection> badgeRows = badges.findBadgeNamesForUsers(userIds);
         for (UserBadgeNameProjection badge : badgeRows) {
@@ -123,7 +124,7 @@ public class LeaderboardService {
                     ("carbontrack-leaderboard:" + userId)
                             .getBytes(StandardCharsets.UTF_8));
             StringBuilder hex = new StringBuilder();
-            for (int i = 0; i < 6; i++) {
+            for (int i = 0; i < 8; i++) {
                 hex.append(String.format("%02X", digest[i]));
             }
             return "Eco-" + hex;
