@@ -10,7 +10,18 @@ The existing activity and analytics APIs power the activity logger and personal 
 - `GET /api/analytics/footprint?period=daily&startDate=YYYY-MM-DD&endDate=YYYY-MM-DD`
 - `GET /api/goals` and `GET /api/goals/{id}/progress`
 
-The backend remains the source of truth for CO2e calculations. The React app must not calculate or invent emission factors locally.
+The backend remains the source of truth for CO2e calculations. The React app must not calculate or invent emission factors locally. The activity form's preview multiplies the selected quantity by an emission factor fetched from the backend; the backend recalculates the saved activity.
+
+The personal dashboard uses the activity and goal APIs to show:
+- Today's recorded emissions and activity count.
+- Week-to-date emissions compared with the same weekdays in the previous week.
+- A Recharts category pie and a Recharts daily comparison line chart.
+- A calendar-month cumulative total compared with the user's explicit monthly target.
+- A goal forecast timeline with observed cumulative emissions, current-pace projection and the goal allowance trajectory. The projection extends the average daily emissions observed so far across the remaining goal period and is labelled as an estimate.
+
+### Personal monthly target
+
+`GET /api/users/me` includes nullable `monthlyTargetKg`. `PUT /api/users/me` accepts `monthlyTargetKg` as a positive decimal in kilograms of CO2e, with up to two decimal places. Sending `null` clears the target. Migration `V10__user_monthly_emissions_target.sql` adds the nullable `users.monthly_target_kg` column. The monthly dashboard compares current calendar-month emissions with this value; it does not infer a target from emission factors or another user's activity.
 
 ## Independent privacy controls
 
