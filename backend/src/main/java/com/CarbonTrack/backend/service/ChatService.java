@@ -254,7 +254,8 @@ public class ChatService {
     }
 
     private String requestedCategory(String question) {
-        if (containsAny(question, "transport", "travel", "commute", "car", "flight")) return "transport";
+        if (containsAny(question, "transport", "travel", "commute", "flight")
+                || containsWholeWord(question, "car")) return "transport";
         if (containsAny(question, "electricity", "energy", "power", "kwh")) return "electricity";
         if (containsAny(question, "food", "meal", "diet", "beef", "chicken")) return "food";
         if (containsAny(question, "shopping", "purchase", "clothing", "electronics")) return "shopping";
@@ -263,6 +264,12 @@ public class ChatService {
 
     private boolean isGreeting(String question) {
         return question.matches("^(hi|hello|hey|good morning|good afternoon|good evening)[!. ]*$");
+    }
+
+    private boolean containsWholeWord(String value, String term) {
+        return java.util.regex.Pattern.compile("\\b" + java.util.regex.Pattern.quote(term) + "\\b")
+                .matcher(value)
+                .find();
     }
 
     private boolean containsAny(String value, String... terms) {
