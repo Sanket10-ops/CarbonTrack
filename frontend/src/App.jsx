@@ -37,6 +37,26 @@ const dateLabel = (v, opts = { day: "numeric", month: "short", year: "numeric" }
   return Number.isNaN(d.getTime()) ? v : d.toLocaleDateString(undefined, opts);
 };
 const words = (v = "") => v.replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const isoDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return year + "-" + month + "-" + day;
+};
+const dateFromIso = (value) => {
+  const parts = String(value || "").slice(0, 10).split("-").map(Number);
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+};
+const shiftIsoDate = (value, amount) => { const date = dateFromIso(value); date.setDate(date.getDate() + amount); return isoDate(date); };
+const mondayStart = (value) => { const date = dateFromIso(value); date.setDate(date.getDate() - ((date.getDay() + 6) % 7)); return isoDate(date); };
+const dateSpanDays = (from, to) => {
+  const utc = (value) => { const p = String(value || "").slice(0, 10).split("-").map(Number); return Date.UTC(p[0], p[1] - 1, p[2]); };
+  return Math.max(0, Math.round((utc(to) - utc(from)) / 86400000));
+};
+const sumActivityEmissions = (rows) => rows.reduce((total, row) => {
+  const value = Number(row.co2eKg ?? 0);
+  return total + (Number.isFinite(value) ? value : 0);
+}, 0);
 function downloadActivitiesCsv(rows) {
   const headers = ["ID", "Date", "Category", "Activity", "Quantity", "Unit", "Emissions (kg CO2e)"];
   const values = rows.map((a) => [a.id, a.logDate, words(a.category), words(a.activityType), a.quantity, a.unit, a.co2eKg]);
@@ -126,6 +146,80 @@ function CategoryChart({ rows = [] }) {
   return <div className="category-content"><div className="donut" style={{ background: "conic-gradient(" + gradient + ")" }}><div><b>{kg(total, 1)}</b><small>kg CO₂e</small></div></div>
     {list.length ? <div className="legend">{list.map((r, i) => <div key={r.category}><span style={{ background: colors[i % colors.length] }} />{words(r.category)}<b>{(Number(r.totalEmissionsKg) / total * 100).toFixed(0)}%</b></div>)}</div> : <p className="muted-small">Your category mix will appear after your first activity.</p>}</div>;
 }
+
+function WeeklyComparisonChart({ activities = [] }) {
+  const currentStart = mondayStart(today());
+  const previousStart = shiftIsoDate(currentStart, -7);
+  const days = Array.from({ length: 7 }, (_, index) => ({
+    current: shiftIsoDate(currentStart, index),
+    previous: shiftIsoDate(previousStart, index),
+    label: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][index]
+  }));
+  const totals = (date) => sumActivityEmissions(
+    activities.filter((activity) => String(activity.logDate || "").slice(0, 10) === date)
+  );
+  const current = days.map((day) => totals(day.current));
+  const previous = days.map((day) => totals(day.previous));
+  const max = Math.max(0.1, ...current, ...previous);
+  const x = (index) => 48 + index * 86;
+  const y = (value) => 16 + (150 - (value / max) * 128);
+  const path = (values) => values.map((value, index) =>
+    (index === 0 ? "M" : "L") + " " + x(index) + " " + y(value)
+  ).join(" ");
+  if (Math.max(...current, ...previous) === 0) {
+    return <div className="chart-empty">No activity recorded in either week.<small>Log an activity to build your weekly comparison.</small></div>;
+  }
+  return <svg className="weekly-comparison-svg" viewBox="0 0 650 205" role="img" aria-label="Daily emissions compared with the previous week">
+    {[0, 1, 2, 3].map((step) => <g key={step}>
+      <line className="chart-grid" x1="48" x2="564" y1={16 + step * 42.67} y2={16 + step * 42.67} />
+      <text className="chart-axis" x="4" y={20 + step * 42.67}>{kg(max * (1 - step / 3), 1)}</text>
+    </g>)}
+    <path className="weekly-line previous" d={path(previous)} />
+    <path className="weekly-line current" d={path(current)} />
+    {days.map((day, index) => <g key={day.current}>
+      <circle className="weekly-dot previous" cx={x(index)} cy={y(previous[index])} r="4" />
+      <circle className="weekly-dot current" cx={x(index)} cy={y(current[index])} r="4" />
+      <text className="chart-date" x={x(index)} y="190" textAnchor="middle">{day.label}</text>
+    </g>)}
+  </svg>;
+}
+
+function GoalProjectionCard({ projection, goal }) {
+  if (!projection) {
+    return <section className="surface projection-card">
+      <div className="surface-title"><div><span className="kicker">GOAL FORECAST</span><h2>Projected goal outcome</h2></div></div>
+      <p className="muted-small">Create an active reduction goal and record activities to calculate a goal projection.</p>
+    </section>;
+  }
+  const targetWidth = projection.baselineTotal > 0
+    ? Math.max(0, Math.min(100, projection.targetTotal / projection.baselineTotal * 100)) : 0;
+  const projectedWidth = projection.baselineTotal > 0
+    ? Math.max(0, Math.min(100, projection.projectedFinal / projection.baselineTotal * 100)) : 0;
+  return <section className="surface projection-card">
+    <div className="surface-title">
+      <div><span className="kicker">GOAL FORECAST</span><h2>Projected goal outcome</h2></div>
+      <Tag>{projection.onTrack ? "On target pace" : "Needs attention"}</Tag>
+    </div>
+    <p className="projection-intro">A pace-based estimate using emissions recorded so far in your active {goal.periodDays}-day goal. It is a projection, not a guaranteed result.</p>
+    <div className="projection-stats">
+      <div><span>Allowed goal footprint</span><b>{kg(projection.targetTotal)} kg</b></div>
+      <div><span>Projected at current pace</span><b>{kg(projection.projectedFinal)} kg</b></div>
+      <div><span>Days remaining</span><b>{projection.remainingDays}</b></div>
+    </div>
+    <div className="projection-track" role="img" aria-label="Projected final emissions compared with the allowed goal footprint">
+      <i className="projection-target" style={{ width: targetWidth + "%" }} />
+      <i className="projection-current" style={{ width: projectedWidth + "%" }} />
+    </div>
+    <div className="projection-legend"><span><i className="projection-target-key" /> Goal allowance</span><span><i className="projection-current-key" /> Current-pace projection</span></div>
+    <div className="projection-footer">
+      <b>{projection.dailyReductionNeeded > 0
+        ? "Daily reduction needed: " + kg(projection.dailyReductionNeeded, 3) + " kg CO₂e/day"
+        : projection.onTrack ? "Current pace meets the daily goal allowance" : "The goal allowance has already been exceeded"}</b>
+      <span>Goal ends {dateLabel(projection.endDate)}</span>
+    </div>
+  </section>;
+}
+
 function GoalCard({ goal }) {
   const p = goal.progress;
   const reduction = Number(p?.reductionPct || 0);
@@ -315,7 +409,89 @@ function App() {
   const leadingCategory = useMemo(() => (analytics?.categoryTotals || [])
     .filter((row) => Number(row.totalEmissionsKg || 0) > 0)
     .sort((a, b) => Number(b.totalEmissionsKg) - Number(a.totalEmissionsKg))[0] || null, [analytics]);
+
   const currentGoal = goals.find((g) => (g.progress?.status || g.status) === "IN_PROGRESS");
+  const todayActivities = useMemo(() => activities.filter((activity) =>
+    String(activity.logDate || "").slice(0, 10) === today()
+  ), [activities]);
+  const todayEmissions = useMemo(() => sumActivityEmissions(todayActivities), [todayActivities]);
+  const weekMetrics = useMemo(() => {
+    const currentStart = mondayStart(today());
+    const previousStart = shiftIsoDate(currentStart, -7);
+    const previousEnd = shiftIsoDate(today(), -7);
+    const currentRows = activities.filter((activity) => {
+      const date = String(activity.logDate || "").slice(0, 10);
+      return date >= currentStart && date <= today();
+    });
+    const previousRows = activities.filter((activity) => {
+      const date = String(activity.logDate || "").slice(0, 10);
+      return date >= previousStart && date <= previousEnd;
+    });
+    const current = sumActivityEmissions(currentRows);
+    const previous = sumActivityEmissions(previousRows);
+    const changePct = previous > 0 ? ((current - previous) / previous) * 100 : null;
+    return { current, previous, changePct, currentCount: currentRows.length, previousCount: previousRows.length };
+  }, [activities]);
+  const monthMetrics = useMemo(() => {
+    const now = dateFromIso(today());
+    const monthStart = isoDate(new Date(now.getFullYear(), now.getMonth(), 1));
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const elapsedDays = now.getDate();
+    const monthRows = activities.filter((activity) => {
+      const date = String(activity.logDate || "").slice(0, 10);
+      return date >= monthStart && date <= today();
+    });
+    const actual = sumActivityEmissions(monthRows);
+    const progress = currentGoal?.progress;
+    const goalPeriodDays = Math.max(1, Number(currentGoal?.periodDays || 30));
+    const goalElapsedDays = currentGoal?.startDate
+      ? Math.max(1, Math.min(goalPeriodDays, dateSpanDays(currentGoal.startDate, today()) + 1))
+      : 0;
+    const baselineDaily = goalElapsedDays > 0
+      ? Number(progress?.baselineEmissionsKg || 0) / goalElapsedDays
+      : 0;
+    const monthlyTarget = baselineDaily > 0
+      ? baselineDaily * (1 - Number(currentGoal.targetReductionPct || 0) / 100) * daysInMonth
+      : 0;
+    return {
+      actual,
+      monthlyTarget: Math.max(0, monthlyTarget),
+      expectedToDate: monthlyTarget * elapsedDays / daysInMonth,
+      daysInMonth,
+      elapsedDays,
+      hasTarget: monthlyTarget > 0,
+      monthStart,
+      activityCount: monthRows.length
+    };
+  }, [activities, currentGoal]);
+  const goalProjection = useMemo(() => {
+    if (!currentGoal?.progress || !currentGoal.startDate) return null;
+    const periodDays = Math.max(1, Number(currentGoal.periodDays || 0));
+    const elapsedDays = Math.max(1, Math.min(periodDays, dateSpanDays(currentGoal.startDate, today()) + 1));
+    const baselineObserved = Number(currentGoal.progress.baselineEmissionsKg || 0);
+    const currentObserved = Number(currentGoal.progress.currentEmissionsKg || 0);
+    if (!(baselineObserved > 0)) return null;
+    const baselineTotal = (baselineObserved / elapsedDays) * periodDays;
+    const targetTotal = baselineTotal * (1 - Number(currentGoal.targetReductionPct || 0) / 100);
+    const remainingDays = Math.max(0, periodDays - elapsedDays);
+    const currentDaily = currentObserved / elapsedDays;
+    const projectedFinal = currentObserved + currentDaily * remainingDays;
+    const remainingBudget = targetTotal - currentObserved;
+    const requiredDailyAllowance = remainingDays > 0
+      ? Math.max(0, remainingBudget / remainingDays) : 0;
+    const dailyReductionNeeded = remainingDays > 0
+      ? Math.max(0, currentDaily - requiredDailyAllowance) : 0;
+    return {
+      baselineTotal,
+      targetTotal,
+      projectedFinal,
+      remainingDays,
+      dailyReductionNeeded,
+      onTrack: projectedFinal <= targetTotal,
+      endDate: currentGoal.progress.endDate
+    };
+  }, [currentGoal]);
+
   const selectedActivityType = TYPES[activityForm.category].find((t) => t[0] === activityForm.activityType);
   const selectedEmissionFactor = emissionFactors.find((factor) =>
     factor.activityType === activityForm.activityType
@@ -414,6 +590,43 @@ function App() {
             <Metric label="Goals in progress" value={activeGoals} unit="active" detail={goals.length + " total goals"} tone="amber" />
             <Metric label="Badges earned" value={badges.length} unit="awards" detail="Milestones from your activity" tone="rose" />
           </div>
+          <div className="m3-dashboard-grid">
+            <section className="surface m3-summary-card">
+              <span className="kicker">TODAY'S FOOTPRINT</span>
+              <strong>{kg(todayEmissions, 3)} <small>kg CO₂e</small></strong>
+              <p>{todayActivities.length} {todayActivities.length === 1 ? "activity" : "activities"} recorded today</p>
+            </section>
+            <section className="surface m3-summary-card">
+              <span className="kicker">CURRENT WEEK</span>
+              <strong>{kg(weekMetrics.current, 2)} <small>kg CO₂e</small></strong>
+              <p>{weekMetrics.currentCount} activities · Monday to today</p>
+            </section>
+            <section className="surface m3-summary-card">
+              <span className="kicker">PREVIOUS WEEK · SAME DAYS</span>
+              <strong>{kg(weekMetrics.previous, 2)} <small>kg CO₂e</small></strong>
+              <p>{weekMetrics.changePct === null
+                ? "No previous-week baseline yet"
+                : Math.abs(weekMetrics.changePct).toFixed(1) + "% " + (weekMetrics.changePct > 0 ? "higher" : weekMetrics.changePct < 0 ? "lower" : "unchanged") + " than the comparable period"}</p>
+            </section>
+            <section className="surface m3-summary-card m3-month-summary">
+              <span className="kicker">MONTHLY GOAL PROGRESS</span>
+              {monthMetrics.hasTarget
+                ? <>
+                    <strong>{kg(monthMetrics.actual, 2)} <small>/ {kg(monthMetrics.monthlyTarget, 2)} kg</small></strong>
+                    <div className="progress-track"><i style={{ width: Math.min(100, monthMetrics.actual / monthMetrics.monthlyTarget * 100) + "%" }} /></div>
+                    <p>{kg(monthMetrics.expectedToDate, 2)} kg expected by day {monthMetrics.elapsedDays} · target derived from your active goal</p>
+                  </>
+                : <p className="m3-no-target">Create an active goal and record a baseline to see a goal-based monthly target.</p>}
+            </section>
+          </div>
+          <section className="surface weekly-card">
+            <div className="surface-title">
+              <div><span className="kicker">WEEK-OVER-WEEK</span><h2>Daily emissions comparison</h2></div>
+              <span className="tag">This week vs previous week</span>
+            </div>
+            <div className="weekly-chart-legend"><span><i className="weekly-current-key" /> Current week</span><span><i className="weekly-previous-key" /> Previous week</span></div>
+            <WeeklyComparisonChart activities={activities} />
+          </section>
           <div className="overview-grid">
             <section className="surface trend-card"><div className="surface-title"><div><span className="kicker">EMISSIONS OVER TIME</span><h2>Your footprint trend</h2></div><select value={period} onChange={(e) => setPeriod(e.target.value)}><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
               <div className="date-filter">
@@ -440,6 +653,7 @@ function App() {
               {currentGoal ? <><h3>{currentGoal.targetReductionPct}% reduction target</h3><p>{kg(currentGoal.progress?.reductionPct, 1)}% reduction achieved over a {currentGoal.periodDays}-day goal period.</p><div className="progress-track"><i style={{ width: Math.max(0, Math.min(100, Number(currentGoal.progress?.reductionPct || 0) / Number(currentGoal.targetReductionPct || 1) * 100)) + "%" }} /></div><button className="link-btn" onClick={() => go("goals")}>Review goal progress →</button></> : <><h3>Choose a goal to work toward</h3><p>A time-bound reduction target makes your progress easier to measure.</p><button className="link-btn" onClick={() => go("goals")}>Create a goal →</button></>}
             </section>
           </div>
+          <GoalProjectionCard projection={goalProjection} goal={currentGoal || { periodDays: 30 }} />
           <section className="surface recent-card"><div className="surface-title"><div><span className="kicker">YOUR LATEST RECORDS</span><h2>Recent activity</h2></div><button className="link-btn" onClick={() => go("activity")}>View activity log →</button></div><ActivityTable rows={activities.slice(0, 5)} compact onAll={() => go("activity")} /></section>
           {loading && <div className="loading"><span /> Refreshing your data…</div>}
         </>}
