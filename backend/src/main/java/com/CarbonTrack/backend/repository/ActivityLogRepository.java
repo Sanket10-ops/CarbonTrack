@@ -40,6 +40,19 @@ public interface ActivityLogRepository
     );
 
     @Query("""
+            select a.user.id as userId,
+                   a.category as category,
+                   sum(a.co2eKg) as totalEmissionsKg
+            from ActivityLog a
+            where a.user.leaderboardOptIn = true
+              and a.logDate between :fromDate and :toDate
+            group by a.user.id, a.category
+            """)
+    List<LeaderboardActivityProjection> aggregateOptedInLeaderboard(
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate);
+
+    @Query("""
             select a.category as category,
                    sum(a.co2eKg) as totalEmissions
             from ActivityLog a

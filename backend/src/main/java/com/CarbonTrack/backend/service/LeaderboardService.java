@@ -2,83 +2,133 @@ package com.CarbonTrack.backend.service;
 
 import com.CarbonTrack.backend.dto.LeaderboardEntryResponse;
 import com.CarbonTrack.backend.repository.ActivityLogRepository;
+import com.CarbonTrack.backend.repository.LeaderboardActivityProjection;
+import com.CarbonTrack.backend.repository.UserBadgeNameProjection;
 import com.CarbonTrack.backend.repository.UserBadgeRepository;
-import com.CarbonTrack.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.security.GeneralSecurityException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HexFormat;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 @Service
 public class LeaderboardService {
+
     private final ActivityLogRepository activities;
-    private final UserRepository users;
     private final UserBadgeRepository badges;
     private final String salt;
 
-    public LeaderboardService(ActivityLogRepository activities, UserRepository users,
-                              UserBadgeRepository badges,
-                              @Value("${carbontrack.leaderboard.salt}") String salt) {
+    public LeaderboardService(
+            ActivityLogRepository activities,
+            UserBadgeRepository badges,
+            @Value("${carbontrack.leaderboard.salt}") String salt) {
         this.activities = activities;
-        this.users = users;
         this.badges = badges;
         this.salt = salt;
     }
 
     @Transactional(readOnly = true)
-    public List<LeaderboardEntryResponse> getLeaderboard(LocalDate from, LocalDate to, int limit) {
-        if (from == null || to == null || to.isBefore(from)) {
-            throw new IllegalArgumentException("A valid from and to date are required");
-        }
+    public List<LeaderboardEntryResponse> getLeaderboard(
+            LocalDate from, LocalDate to, int limit) {
+        validateRange(from, to);
+
         int safeLimit = Math.max(1, Math.min(limit, 50));
-        var enabledUsers = users.findAllByLeaderboardOptInTrue();
-        List<Ranked> ranked = new ArrayList<>();
+        List<LeaderboardActivityProjection> totals =
+                activities.aggregateOptedInLeaderboard(from, to);
 
-        for (var user : enabledUsers) {
-            var rows = activities.findByUserIdAndLogDateBetweenOrderByLogDateDesc(
-                    user.getId(), from, to);
-            BigDecimal total = rows.stream().map(a -> a.getCo2eKg() == null
-                    ? BigDecimal.ZERO : a.getCo2eKg()).reduce(BigDecimal.ZERO, BigDecimal::add);
-            if (rows.isEmpty()) continue;
-
-            var categoryTotals = new java.util.TreeMap<String, BigDecimal>();
-            rows.forEach(a -> categoryTotals.merge(a.getCategory().toLowerCase(Locale.ROOT),
-                    a.getCo2eKg() == null ? BigDecimal.ZERO : a.getCo2eKg(), BigDecimal::add));
-            String strongest = categoryTotals.entrySet().stream()
-                    .max(java.util.Map.Entry.comparingByValue())
-                    .map(java.util.Map.Entry::getKey).orElse("not_recorded");
-            List<String> badgeNames = badges.findNamesByUserId(user.getId());
-            ranked.add(new Ranked(total, alias(user.getId()), strongest, badgeNames));
+        Map<Long, RankedBuilder> byUser = new LinkedHashMap<>();
+        for (LeaderboardActivityProjection row : totals) {
+            if (row.getUserId() == null) continue;
+            BigDecimal amount = row.getTotalEmissionsKg() == null
+                    ? BigDecimal.ZERO : row.getTotalEmissionsKg();
+            RankedBuilder builder = byUser.computeIfAbsent(
+                    row.getUserId(), ignored -> new RankedBuilder());
+            builder.total = builder.total.add(amount);
+            String category = row.getCategory() == null
+                    ? "other" : row.getCategory().toLowerCase(Locale.ROOT);
+            builder.categoryTotals.merge(category, amount, BigDecimal::add);
         }
+
+        if (byUser.isEmpty()) return List.of();
+
+        List<Long> userIds = new ArrayList<>(byUser.keySet());
+        Map<Long, List<String>> badgeNames = new HashMap<>();
+        List<UserBadgeNameProjection> badgeRows = badges.findBadgeNamesForUsers(userIds);
+        for (UserBadgeNameProjection badge : badgeRows) {
+            badgeNames.computeIfAbsent(badge.getUserId(), ignored -> new ArrayList<>())
+                    .add(badge.getBadgeName());
+        }
+
+        List<Ranked> ranked = new ArrayList<>();
+        byUser.forEach((userId, builder) -> {
+            String strongestCategory = builder.categoryTotals.entrySet().stream()
+                    .max(Map.Entry.<String, BigDecimal>comparingByValue()
+                            .thenComparing(Map.Entry::getKey))
+                    .map(Map.Entry::getKey)
+                    .orElse("not_recorded");
+            ranked.add(new Ranked(
+                    builder.total,
+                    alias(userId),
+                    strongestCategory,
+                    List.copyOf(badgeNames.getOrDefault(userId, List.of()))));
+        });
 
         ranked.sort(Comparator.comparing(Ranked::total)
                 .thenComparing(Ranked::alias));
+
         List<LeaderboardEntryResponse> result = new ArrayList<>();
         for (int i = 0; i < Math.min(safeLimit, ranked.size()); i++) {
             Ranked item = ranked.get(i);
-            result.add(new LeaderboardEntryResponse(i + 1, item.alias(), item.total(),
-                    item.strongest(), item.badges(), tip(item.strongest())));
+            result.add(new LeaderboardEntryResponse(
+                    i + 1,
+                    item.alias(),
+                    item.total(),
+                    item.strongestCategory(),
+                    item.badges(),
+                    tip(item.strongestCategory())));
         }
         return result;
     }
 
-    private String alias(Long id) {
+    private void validateRange(LocalDate from, LocalDate to) {
+        if (from == null || to == null || to.isBefore(from)) {
+            throw new IllegalArgumentException("A valid from and to date are required");
+        }
+        if (to.isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("The end date cannot be in the future");
+        }
+        if (from.isBefore(to.minusYears(2))) {
+            throw new IllegalArgumentException("The leaderboard date range cannot exceed two years");
+        }
+    }
+
+    private String alias(Long userId) {
         try {
-            byte[] hash = MessageDigest.getInstance("SHA-256")
-                    .digest((salt + ":" + id).getBytes(StandardCharsets.UTF_8));
-            return "Eco-" + HexFormat.of().formatHex(hash, 0, 4).toUpperCase(Locale.ROOT);
-        } catch (NoSuchAlgorithmException ex) {
-            throw new IllegalStateException("SHA-256 is unavailable", ex);
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(
+                    salt.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            byte[] digest = mac.doFinal(
+                    ("carbontrack-leaderboard:" + userId)
+                            .getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder();
+            for (int i = 0; i < 6; i++) {
+                hex.append(String.format("%02X", digest[i]));
+            }
+            return "Eco-" + hex;
+        } catch (GeneralSecurityException ex) {
+            throw new IllegalStateException("Unable to generate leaderboard alias", ex);
         }
     }
 
@@ -92,5 +142,15 @@ public class LeaderboardService {
         };
     }
 
-    private record Ranked(BigDecimal total, String alias, String strongest, List<String> badges) {}
+    private static final class RankedBuilder {
+        private BigDecimal total = BigDecimal.ZERO;
+        private final Map<String, BigDecimal> categoryTotals = new HashMap<>();
+    }
+
+    private record Ranked(
+            BigDecimal total,
+            String alias,
+            String strongestCategory,
+            List<String> badges) {
+    }
 }

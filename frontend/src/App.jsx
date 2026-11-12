@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { api, clearToken, getToken, setToken } from "./api.js";
+import LeaderboardPage from "./pages/LeaderboardPage.jsx";
+import OrganisationPage from "./pages/OrganisationPage.jsx";
+import "./milestone3.css";
 
 const NAV = [
   ["overview", "Overview", "▦", "WORKSPACE"],
@@ -8,6 +11,8 @@ const NAV = [
   ["recommendations", "Recommendations", "✳", "INSIGHTS"],
   ["achievements", "Achievements", "◇", "INSIGHTS"],
   ["community", "Community", "◉", "INSIGHTS"],
+  ["leaderboard", "Leaderboard", "♜", "INSIGHTS"],
+  ["organisation", "Organisation", "⌂", "ORGANISATION"],
   ["preferences", "Preferences", "⚙", "ACCOUNT"]
 ];
 const TYPES = {
@@ -162,7 +167,15 @@ function App() {
   const [mobileNav, setMobileNav] = useState(false);
   const [activityForm, setActivityForm] = useState({ category: "transport", activityType: "car_travel", quantity: "", logDate: today(), energySource: "grid", mealType: "lunch", servings: "", productCategory: "clothing", spendAmount: "", spendCurrency: "INR", flightDistanceKm: "" });
   const [goalForm, setGoalForm] = useState({ targetReductionPct: "20", periodDays: "30", startDate: today() });
-  const [profileForm, setProfileForm] = useState({ preferredTransport: "", dietPreference: "", sustainabilityGoal: "", preferredUnits: "metric", goalVisibility: false });
+  const [profileForm, setProfileForm] = useState({
+    preferredTransport: "",
+    dietPreference: "",
+    sustainabilityGoal: "",
+    preferredUnits: "metric",
+    goalVisibility: false,
+    leaderboardOptIn: false,
+    organisationReportingOptIn: false
+  });
   const dataRequestId = useRef(0);
 
   useEffect(() => {
@@ -200,7 +213,15 @@ function App() {
       const p = results[5].value;
       setProfile(p);
       setUsername(p.username || username);
-      setProfileForm({ preferredTransport: p.preferredTransport || "", dietPreference: p.dietPreference || "", sustainabilityGoal: p.sustainabilityGoal || "", preferredUnits: "metric", goalVisibility: Boolean(p.goalVisibility) });
+      setProfileForm({
+        preferredTransport: p.preferredTransport || "",
+        dietPreference: p.dietPreference || "",
+        sustainabilityGoal: p.sustainabilityGoal || "",
+        preferredUnits: p.preferredUnits || "metric",
+        goalVisibility: Boolean(p.goalVisibility),
+        leaderboardOptIn: Boolean(p.leaderboardOptIn),
+        organisationReportingOptIn: Boolean(p.organisationReportingOptIn)
+      });
     }
     setWarnings(failed);
   }
@@ -256,7 +277,20 @@ function App() {
   async function submitProfile(e) {
     e.preventDefault(); setBusy(true); setActionError("");
     try {
-      const p = await api.updateProfile({ preferredTransport: profileForm.preferredTransport || null, dietPreference: profileForm.dietPreference || null, sustainabilityGoal: profileForm.sustainabilityGoal || null, preferredUnits: "metric", goalVisibility: profileForm.goalVisibility });
+      const p = await api.updateProfile({
+        preferredTransport: profileForm.preferredTransport || null,
+        dietPreference: profileForm.dietPreference || null,
+        sustainabilityGoal: profileForm.sustainabilityGoal || null,
+        preferredUnits: profileForm.preferredUnits,
+        goalVisibility: profileForm.goalVisibility,
+        leaderboardOptIn: profileForm.leaderboardOptIn,
+        organisationReportingOptIn: profileForm.organisationReportingOptIn
+      });
+      setProfileForm((current) => ({
+        ...current,
+        leaderboardOptIn: Boolean(p.leaderboardOptIn),
+        organisationReportingOptIn: Boolean(p.organisationReportingOptIn)
+      }));
       setProfile(p); setNotice("Preferences saved.");
     } catch (err) { setActionError(err.message); } finally { setBusy(false); }
   }
@@ -295,7 +329,7 @@ function App() {
     <aside className={"sidebar " + (mobileNav ? "sidebar-open" : "")}>
       <div className="sidebar-brand"><Mark /><button className="mobile-close" onClick={() => setMobileNav(false)}>×</button></div>
       <div className="workspace-switch"><span className="workspace-mark">C</span><div><b>Personal space</b><small>Individual account</small></div><span>⌄</span></div>
-      {["WORKSPACE", "INSIGHTS", "ACCOUNT"].map((group) => <div className="nav-group" key={group}><span className="nav-kicker">{group}</span>{NAV.filter((n) => n[3] === group).map((n) => <button key={n[0]} className={"nav-item " + (page === n[0] ? "active" : "")} onClick={() => go(n[0])}><span className="nav-icon">{n[2]}</span>{n[1]}{n[0] === "goals" && activeGoals > 0 && <small>{activeGoals}</small>}</button>)}</div>)}
+      {["WORKSPACE", "INSIGHTS", "ORGANISATION", "ACCOUNT"].map((group) => <div className="nav-group" key={group}><span className="nav-kicker">{group}</span>{NAV.filter((n) => n[3] === group).map((n) => <button key={n[0]} className={"nav-item " + (page === n[0] ? "active" : "")} onClick={() => go(n[0])}><span className="nav-icon">{n[2]}</span>{n[1]}{n[0] === "goals" && activeGoals > 0 && <small>{activeGoals}</small>}</button>)}</div>)}
       <div className="sidebar-bottom"><div className="sidebar-note"><span>✳</span><b>Progress over perfection.</b><p>Small, consistent changes make a measurable difference.</p></div><div className="user-row"><span className="avatar">{(username || "C")[0].toUpperCase()}</span><div><b>{username}</b><small>Personal account</small></div><button title="Sign out" onClick={signOut}>↗</button></div></div>
     </aside>
     <main className="main-area">
@@ -429,6 +463,21 @@ function App() {
           {benchmark && benchmark.participantCount === 0 && <div className="alert alert-warning">No opted-in participants were found for this range. Enable visibility in Preferences and invite others to opt in.</div>}
         </>}
 
+        {page === "leaderboard" && <LeaderboardPage profile={profile} onPreferences={() => go("preferences")} />}
+        {page === "organisation" && <OrganisationPage
+          profile={profile}
+          onProfileRefresh={async () => {
+            const nextProfile = await api.profile();
+            setProfile(nextProfile);
+            setUsername(nextProfile.username || username);
+            setProfileForm((current) => ({
+              ...current,
+              leaderboardOptIn: Boolean(nextProfile.leaderboardOptIn),
+              organisationReportingOptIn: Boolean(nextProfile.organisationReportingOptIn)
+            }));
+          }}
+        />}
+
         {page === "preferences" && <>
           <PageHeading kicker="MAKE CARBONTRACK YOURS" title="Preferences" subtitle="Set your sustainability preferences and control whether your totals contribute to community benchmarking." />
           <form className="surface preferences-card" onSubmit={submitProfile}><div className="surface-title"><div><span className="kicker">PERSONAL SETTINGS</span><h2>Your sustainability profile</h2></div><span className="large-soft-icon">⚙</span></div>
@@ -438,7 +487,18 @@ function App() {
               <Field label="Sustainability focus"><select value={profileForm.sustainabilityGoal} onChange={(e) => setProfileForm((v) => ({ ...v, sustainabilityGoal: e.target.value }))}><option value="">Not specified</option><option value="reduce_transport_emissions">Reduce transport emissions</option><option value="reduce_energy_use">Reduce energy use</option><option value="eat_more_plant_based">Eat more plant-based meals</option><option value="shop_consciously">Shop more consciously</option><option value="overall_reduction">Overall footprint reduction</option></select></Field>
               <Field label="Measurement system"><div className="fixed-setting"><b>Metric system</b><span>kg · km · kWh</span></div></Field>
             </div><div className="settings-divider" /><div className="privacy-setting"><div><b>Community benchmark visibility</b><p>Allow your aggregate emissions to contribute to the community average. Change this at any time.</p></div><label className="toggle"><input type="checkbox" checked={profileForm.goalVisibility} onChange={(e) => setProfileForm((v) => ({ ...v, goalVisibility: e.target.checked }))} /><span /></label></div>
-            <div className="preferences-footer"><small>▣ Privacy sharing is disabled by default.</small><Button type="submit" disabled={busy}>{busy ? "Saving…" : "Save preferences →"}</Button></div>
+            <div className="settings-divider" />
+      <div className="m3-privacy-options">
+        <div className="privacy-setting">
+          <div><b>Anonymous leaderboard participation</b><p>Allow your alias and aggregated emissions to appear in the community top-50 ranking. This is separate from community benchmark sharing.</p></div>
+          <label className="toggle"><input type="checkbox" checked={profileForm.leaderboardOptIn} onChange={(e) => setProfileForm((v) => ({ ...v, leaderboardOptIn: e.target.checked }))} /><span /></label>
+        </div>
+        <div className="privacy-setting">
+          <div><b>Organisation reporting consent</b><p>Allow your organisation administrator to include your employee-level emissions in internal reports. This does not make your data public.</p></div>
+          <label className="toggle"><input type="checkbox" checked={profileForm.organisationReportingOptIn} onChange={(e) => setProfileForm((v) => ({ ...v, organisationReportingOptIn: e.target.checked }))} /><span /></label>
+        </div>
+      </div>
+      <div className="preferences-footer"><small>All three sharing choices are independent and disabled by default for new accounts.</small><Button type="submit" disabled={busy}>{busy ? "Saving…" : "Save preferences →"}</Button></div>
           </form>
           <section className="surface account-card"><span className="kicker">ACCOUNT DETAILS</span><h2>Account information</h2><div className="account-grid"><div><span>Username</span><b>{profile?.username || username}</b></div><div><span>Email</span><b>{profile?.email || "—"}</b></div><div><span>Account role</span><b>{profile?.role || "USER"}</b></div><div><span>Member since</span><b>{dateLabel(profile?.createdAt)}</b></div></div></section>
         </>}

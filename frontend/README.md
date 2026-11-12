@@ -1,6 +1,6 @@
 # CarbonTrack frontend
 
-React 19 + Vite application for the CarbonTrack Milestone 2 experience.
+React 19 + Vite application for CarbonTrack milestones 2 and 3.
 
 ## Requirements
 
@@ -20,7 +20,7 @@ npm run dev
 
 Open http://localhost:5173.
 
-The Vite development server proxies `/api` and `/actuator` to the Spring Boot API at http://localhost:8080. No separate CORS configuration is required for local development.
+The Vite development server proxies `/api` and `/actuator` to the Spring Boot API at http://localhost:8080.
 
 ## Production build
 
@@ -29,18 +29,16 @@ npm run build
 npm run preview
 ```
 
-## Authentication
+## Milestone 3 screens
 
-The frontend uses the existing `POST /api/auth/login` endpoint and keeps the access token in browser session storage. Signing out removes the token. The login/register forms do not contain demo credentials.
+- Activity logger and personal overview, using backend-calculated emissions.
+- Personal goal widgets and progress.
+- Anonymous leaderboard with date filtering and the top 50 opt-in accounts.
+- Organisation creation, existing-member linking, consent-filtered dashboard, monthly/category trends and CSR CSV export.
+- Separate Preferences controls for community benchmark, public leaderboard and internal organisation reporting.
 
-## Screens
+## Authentication and privacy
 
-- Overview: footprint summary, category totals, timeline and recent activity
-- Activity: log and review transport, electricity, food and shopping activities
-- Goals: create a reduction goal and inspect progress
-- Recommendations: personalised category-based recommendations
-- Achievements: awarded badges
-- Community: opt-in benchmark comparison
-- Preferences: sustainability preferences and benchmark visibility
+The access token is held in browser session storage. All protected API calls send it as a bearer token. A member can opt out of leaderboard and organisation reporting at any time. Adding an account to an organisation does not enable reporting consent on that member's behalf.
 
-All figures and records displayed by these screens are requested from the CarbonTrack backend. The UI does not seed fabricated dashboard data.
+All activity and dashboard numbers come from the backend. The UI does not invent CO2e factors or replace missing API results with demo data.

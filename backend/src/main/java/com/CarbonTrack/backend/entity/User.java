@@ -53,6 +53,12 @@ public class User {
     @Column(name = "goal_visibility", nullable = false)
     private boolean goalVisibility = false;
 
+    @Column(name = "leaderboard_opt_in", nullable = false)
+    private boolean leaderboardOptIn = false;
+
+    @Column(name = "organisation_reporting_opt_in", nullable = false)
+    private boolean organisationReportingOptIn = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -156,6 +162,22 @@ public class User {
 
     public void setGoalVisibility(boolean goalVisibility) {
         this.goalVisibility = goalVisibility;
+    }
+
+    public boolean isLeaderboardOptIn() {
+        return leaderboardOptIn;
+    }
+
+    public void setLeaderboardOptIn(boolean leaderboardOptIn) {
+        this.leaderboardOptIn = leaderboardOptIn;
+    }
+
+    public boolean isOrganisationReportingOptIn() {
+        return organisationReportingOptIn;
+    }
+
+    public void setOrganisationReportingOptIn(boolean organisationReportingOptIn) {
+        this.organisationReportingOptIn = organisationReportingOptIn;
     }
 
     public LocalDateTime getCreatedAt() {

@@ -54,6 +54,12 @@ public class UserController {
         if (request.goalVisibility() != null) {
             user.setGoalVisibility(request.goalVisibility());
         }
+        if (request.leaderboardOptIn() != null) {
+            user.setLeaderboardOptIn(request.leaderboardOptIn());
+        }
+        if (request.organisationReportingOptIn() != null) {
+            user.setOrganisationReportingOptIn(request.organisationReportingOptIn());
+        }
 
         User savedUser = userRepository.save(user);
         return toProfileResponse(savedUser);
@@ -85,7 +91,11 @@ public class UserController {
                 user.getDietPreference(),
                 user.getSustainabilityGoal(),
                 user.getPreferredUnits(),
-                user.isGoalVisibility()
+                user.isGoalVisibility(),
+                user.isLeaderboardOptIn(),
+                user.isOrganisationReportingOptIn(),
+                user.getOrganisation() == null ? null : user.getOrganisation().getId(),
+                user.getOrganisation() == null ? null : user.getOrganisation().getName()
         );
     }
 }

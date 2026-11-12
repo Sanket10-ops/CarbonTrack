@@ -12,6 +12,10 @@ public record UserProfileResponse(
         String dietPreference,
         String sustainabilityGoal,
         String preferredUnits,
-        boolean goalVisibility
+        boolean goalVisibility,
+        boolean leaderboardOptIn,
+        boolean organisationReportingOptIn,
+        Long organisationId,
+        String organisationName
 ) {
 }

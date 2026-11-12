@@ -81,5 +81,35 @@ export const api = {
   updateProfile: (payload) => request("/api/users/me", {
     method: "PUT",
     body: JSON.stringify(payload)
-  })
+  }),
+  leaderboard: (from, to, limit = 50) => request(
+    `/api/leaderboard?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&limit=${limit}`
+  ),
+  createOrganisation: (name) => request("/api/organisations", {
+    method: "POST",
+    body: JSON.stringify({ name })
+  }),
+  addOrganisationMember: (email) => request("/api/organisations/me/members", {
+    method: "POST",
+    body: JSON.stringify({ email })
+  }),
+  organisationDashboard: (from, to) => request(
+    `/api/organisations/me/dashboard?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+  ),
+  downloadOrganisationReport: async (from, to) => {
+    const headers = new Headers();
+    const token = getToken();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    let response;
+    try {
+      response = await fetch(`${API_BASE}/api/organisations/me/export.csv?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, { headers });
+    } catch {
+      throw new Error("Cannot reach CarbonTrack API. Start the backend and retry.");
+    }
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      throw new Error(payload?.message || payload?.error || `Report export failed (${response.status})`);
+    }
+    return response.blob();
+  }
 };

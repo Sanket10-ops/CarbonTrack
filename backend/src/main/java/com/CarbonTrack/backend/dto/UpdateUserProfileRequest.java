@@ -20,7 +20,11 @@ public record UpdateUserProfileRequest(
         )
         String preferredUnits,
 
-        Boolean goalVisibility
+        Boolean goalVisibility,
+
+        Boolean leaderboardOptIn,
+
+        Boolean organisationReportingOptIn
 
 ) {
 }
