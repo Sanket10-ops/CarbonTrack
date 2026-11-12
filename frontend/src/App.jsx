@@ -281,7 +281,8 @@ function App() {
     preferredUnits: "metric",
     goalVisibility: false,
     leaderboardOptIn: false,
-    organisationReportingOptIn: false
+    organisationReportingOptIn: false,
+    monthlyTargetKg: ""
   });
   const dataRequestId = useRef(0);
 
@@ -327,7 +328,8 @@ function App() {
         preferredUnits: p.preferredUnits || "metric",
         goalVisibility: Boolean(p.goalVisibility),
         leaderboardOptIn: Boolean(p.leaderboardOptIn),
-        organisationReportingOptIn: Boolean(p.organisationReportingOptIn)
+        organisationReportingOptIn: Boolean(p.organisationReportingOptIn),
+        monthlyTargetKg: p.monthlyTargetKg == null ? "" : String(p.monthlyTargetKg)
       });
     }
     if (results[6].status === "fulfilled") {
@@ -400,12 +402,14 @@ function App() {
         preferredUnits: profileForm.preferredUnits,
         goalVisibility: profileForm.goalVisibility,
         leaderboardOptIn: profileForm.leaderboardOptIn,
-        organisationReportingOptIn: profileForm.organisationReportingOptIn
+        organisationReportingOptIn: profileForm.organisationReportingOptIn,
+        monthlyTargetKg: profileForm.monthlyTargetKg.trim() ? Number(profileForm.monthlyTargetKg) : null
       });
       setProfileForm((current) => ({
         ...current,
         leaderboardOptIn: Boolean(p.leaderboardOptIn),
-        organisationReportingOptIn: Boolean(p.organisationReportingOptIn)
+        organisationReportingOptIn: Boolean(p.organisationReportingOptIn),
+        monthlyTargetKg: p.monthlyTargetKg == null ? "" : String(p.monthlyTargetKg)
       }));
       setProfile(p); setNotice("Preferences saved.");
     } catch (err) { setActionError(err.message); } finally { setBusy(false); }
@@ -453,28 +457,18 @@ function App() {
       return date >= monthStart && date <= today();
     });
     const actual = sumActivityEmissions(monthRows);
-    const progress = currentGoal?.progress;
-    const goalPeriodDays = Math.max(1, Number(currentGoal?.periodDays || 30));
-    const goalElapsedDays = currentGoal?.startDate
-      ? Math.max(1, Math.min(goalPeriodDays, dateSpanDays(currentGoal.startDate, today()) + 1))
-      : 0;
-    const baselineDaily = goalElapsedDays > 0
-      ? Number(progress?.baselineEmissionsKg || 0) / goalElapsedDays
-      : 0;
-    const monthlyTarget = baselineDaily > 0
-      ? baselineDaily * (1 - Number(currentGoal.targetReductionPct || 0) / 100) * daysInMonth
-      : 0;
+    const monthlyTarget = Number(profile?.monthlyTargetKg || 0);
     return {
       actual,
-      monthlyTarget: Math.max(0, monthlyTarget),
-      expectedToDate: monthlyTarget * elapsedDays / daysInMonth,
+      monthlyTarget: monthlyTarget > 0 ? monthlyTarget : 0,
+      expectedToDate: monthlyTarget > 0 ? monthlyTarget * elapsedDays / daysInMonth : 0,
       daysInMonth,
       elapsedDays,
-      hasTarget: Boolean(currentGoal) && baselineDaily > 0,
+      hasTarget: monthlyTarget > 0,
       monthStart,
       activityCount: monthRows.length
     };
-  }, [activities, currentGoal]);
+  }, [activities, profile?.monthlyTargetKg]);
   const goalProjection = useMemo(() => {
     if (!currentGoal?.progress || !currentGoal.startDate) return null;
     const periodDays = Math.max(1, Number(currentGoal.periodDays || 0));
@@ -625,9 +619,9 @@ function App() {
                 ? <>
                     <strong>{kg(monthMetrics.actual, 2)} <small>/ {kg(monthMetrics.monthlyTarget, 2)} kg</small></strong>
                     <div className="progress-track"><i style={{ width: monthMetrics.monthlyTarget > 0 ? Math.min(100, monthMetrics.actual / monthMetrics.monthlyTarget * 100) + "%" : "0%" }} /></div>
-                    <p>{kg(monthMetrics.expectedToDate, 2)} kg expected by day {monthMetrics.elapsedDays} · target derived from your active goal</p>
+                    <p>{kg(monthMetrics.expectedToDate, 2)} kg expected by day {monthMetrics.elapsedDays} · monthly target set in Preferences</p>
                   </>
-                : <p className="m3-no-target">Create an active goal and record a baseline to see a goal-based monthly target.</p>}
+                : <p className="m3-no-target">Set your monthly CO₂e target in Preferences to track progress here. <button className="link-btn" type="button" onClick={() => go("preferences")}>Set monthly target →</button></p>}
             </section>
           </div>
           <section className="surface weekly-card">
@@ -782,13 +776,16 @@ function App() {
         />}
 
         {page === "preferences" && <>
-          <PageHeading kicker="MAKE CARBONTRACK YOURS" title="Preferences" subtitle="Set your sustainability preferences and control whether your totals contribute to community benchmarking." />
+          <PageHeading kicker="MAKE CARBONTRACK YOURS" title="Preferences" subtitle="Set your monthly footprint target, sustainability preferences and independent data-sharing controls." />
           <form className="surface preferences-card" onSubmit={submitProfile}><div className="surface-title"><div><span className="kicker">PERSONAL SETTINGS</span><h2>Your sustainability profile</h2></div><span className="large-soft-icon">⚙</span></div>
             <div className="preferences-grid">
               <Field label="Preferred transport"><select value={profileForm.preferredTransport} onChange={(e) => setProfileForm((v) => ({ ...v, preferredTransport: e.target.value }))}><option value="">Not specified</option><option value="walking">Walking</option><option value="cycling">Cycling</option><option value="public_transport">Public transport</option><option value="car">Car</option><option value="motorcycle">Motorcycle</option><option value="train">Train</option></select></Field>
               <Field label="Diet preference"><select value={profileForm.dietPreference} onChange={(e) => setProfileForm((v) => ({ ...v, dietPreference: e.target.value }))}><option value="">Not specified</option><option value="omnivore">Omnivore</option><option value="vegetarian">Vegetarian</option><option value="vegan">Vegan</option><option value="pescatarian">Pescatarian</option></select></Field>
               <Field label="Sustainability focus"><select value={profileForm.sustainabilityGoal} onChange={(e) => setProfileForm((v) => ({ ...v, sustainabilityGoal: e.target.value }))}><option value="">Not specified</option><option value="reduce_transport_emissions">Reduce transport emissions</option><option value="reduce_energy_use">Reduce energy use</option><option value="eat_more_plant_based">Eat more plant-based meals</option><option value="shop_consciously">Shop more consciously</option><option value="overall_reduction">Overall footprint reduction</option></select></Field>
               <Field label="Measurement system"><div className="fixed-setting"><b>Metric system</b><span>kg · km · kWh</span></div></Field>
+              <Field label="Monthly CO₂e target (kg)" hint="Set your cumulative emissions budget for the current calendar month. Leave blank to remove it.">
+                <input type="number" min="0.01" max="9999999999.99" step="0.01" placeholder="e.g. 120.00" value={profileForm.monthlyTargetKg} onChange={(e) => setProfileForm((v) => ({ ...v, monthlyTargetKg: e.target.value }))} />
+              </Field>
             </div><div className="settings-divider" /><div className="privacy-setting"><div><b>Community benchmark visibility</b><p>Allow your aggregate emissions to contribute to the community average. Change this at any time.</p></div><label className="toggle"><input type="checkbox" checked={profileForm.goalVisibility} onChange={(e) => setProfileForm((v) => ({ ...v, goalVisibility: e.target.checked }))} /><span /></label></div>
             <div className="settings-divider" />
       <div className="m3-privacy-options">
