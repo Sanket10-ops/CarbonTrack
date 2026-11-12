@@ -640,3 +640,21 @@ td small { color: #9ba69e; font-size: 9px; }
   margin-top: 6px;
 }
 .projection-observed-key { background: #4d8a70; }
+
+
+/* Personal goal current-footprint versus target progress */
+.projection-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.goal-current-progress { margin: 0 0 16px; }
+.goal-current-progress > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 7px;
+  color: #829087;
+  font-size: 10px;
+}
+.goal-current-progress b { color: #4c7057; }
+@media (max-width: 900px) {
+  .projection-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
