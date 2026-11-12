@@ -631,3 +631,12 @@ td small { color: #9ba69e; font-size: 9px; }
   font-size: 9px;
 }
 .weekly-recharts-chart { width: 100%; min-width: 0; }
+
+
+/* Goal forecast timeline chart */
+.goal-timeline-chart {
+  width: 100%;
+  min-width: 0;
+  margin-top: 6px;
+}
+.projection-observed-key { background: #4d8a70; }
