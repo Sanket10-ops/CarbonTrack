@@ -4,6 +4,7 @@ import LeaderboardPage from "./pages/LeaderboardPage.jsx";
 import OrganisationPage from "./pages/OrganisationPage.jsx";
 import ChatAssistant from "./ChatAssistant.jsx";
 import "./milestone3.css";
+import { CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 const NAV = [
   ["overview", "Overview", "▦", "WORKSPACE"],
@@ -133,18 +134,30 @@ function TrendChart({ points = [] }) {
   </svg>;
 }
 function CategoryChart({ rows = [] }) {
-  const list = rows.filter((r) => Number(r.totalEmissionsKg || 0) > 0);
-  const total = list.reduce((sum, r) => sum + Number(r.totalEmissionsKg), 0);
   const colors = ["#4d8a70", "#c99e42", "#d17d5e", "#777eb0"];
-  let current = 0;
-  const gradient = total ? list.map((r, i) => {
-    const n = Number(r.totalEmissionsKg) / total * 100;
-    const part = colors[i % colors.length] + " " + current + "% " + (current + n) + "%";
-    current += n;
-    return part;
-  }).join(", ") : "#e9eee9 0% 100%";
-  return <div className="category-content"><div className="donut" style={{ background: "conic-gradient(" + gradient + ")" }}><div><b>{kg(total, 1)}</b><small>kg CO₂e</small></div></div>
-    {list.length ? <div className="legend">{list.map((r, i) => <div key={r.category}><span style={{ background: colors[i % colors.length] }} />{words(r.category)}<b>{(Number(r.totalEmissionsKg) / total * 100).toFixed(0)}%</b></div>)}</div> : <p className="muted-small">Your category mix will appear after your first activity.</p>}</div>;
+  const list = rows
+    .map((row) => ({ category: row.category, totalEmissionsKg: Number(row.totalEmissionsKg || 0) }))
+    .filter((row) => Number.isFinite(row.totalEmissionsKg) && row.totalEmissionsKg > 0);
+  const total = list.reduce((sum, row) => sum + row.totalEmissionsKg, 0);
+  return <div className="category-content">
+    {list.length ? <>
+      <div className="recharts-pie-wrap">
+        <ResponsiveContainer width="100%" height={230}>
+          <PieChart>
+            <Pie data={list} dataKey="totalEmissionsKg" nameKey="category" innerRadius={62} outerRadius={88} paddingAngle={2} stroke="#fff" strokeWidth={2}>
+              {list.map((row, index) => <Cell key={row.category} fill={colors[index % colors.length]} />)}
+            </Pie>
+            <Tooltip formatter={(value, name) => [kg(value, 2) + " kg CO₂e", words(String(name))]} />
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="recharts-pie-total"><b>{kg(total, 1)}</b><small>kg CO₂e</small></div>
+      </div>
+      <div className="legend">{list.map((row, index) => <div key={row.category}>
+        <span style={{ background: colors[index % colors.length] }} />{words(row.category)}
+        <b>{(row.totalEmissionsKg / total * 100).toFixed(0)}%</b>
+      </div>)}</div>
+    </> : <p className="muted-small">Your category mix will appear after your first activity.</p>}
+  </div>;
 }
 
 function WeeklyComparisonChart({ activities = [] }) {
@@ -155,34 +168,31 @@ function WeeklyComparisonChart({ activities = [] }) {
     previous: shiftIsoDate(previousStart, index),
     label: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][index]
   }));
+  const currentWeekday = (dateFromIso(today()).getDay() + 6) % 7;
   const totals = (date) => sumActivityEmissions(
     activities.filter((activity) => String(activity.logDate || "").slice(0, 10) === date)
   );
-  const currentWeekday = (dateFromIso(today()).getDay() + 6) % 7;
-  const current = days.map((day) => totals(day.current));
-  const previous = days.map((day, index) => index <= currentWeekday ? totals(day.previous) : 0);
-  const max = Math.max(0.1, ...current, ...previous);
-  const x = (index) => 48 + index * 86;
-  const y = (value) => 16 + (150 - (value / max) * 128);
-  const path = (values) => values.map((value, index) =>
-    (index === 0 ? "M" : "L") + " " + x(index) + " " + y(value)
-  ).join(" ");
-  if (Math.max(...current, ...previous) === 0) {
-    return <div className="chart-empty">No activity recorded in either week.<small>Log an activity to build your weekly comparison.</small></div>;
+  const data = days.map((day, index) => ({
+    day: day.label,
+    current: totals(day.current),
+    previous: index <= currentWeekday ? totals(day.previous) : 0
+  }));
+  const hasActivity = data.some((point) => point.current > 0 || point.previous > 0);
+  if (!hasActivity) {
+    return <div className="chart-empty">No activity recorded in either comparable period.<small>Log an activity to build your weekly comparison.</small></div>;
   }
-  return <svg className="weekly-comparison-svg" viewBox="0 0 650 205" role="img" aria-label="Daily emissions compared with the previous week">
-    {[0, 1, 2, 3].map((step) => <g key={step}>
-      <line className="chart-grid" x1="48" x2="564" y1={16 + step * 42.67} y2={16 + step * 42.67} />
-      <text className="chart-axis" x="4" y={20 + step * 42.67}>{kg(max * (1 - step / 3), 1)}</text>
-    </g>)}
-    <path className="weekly-line previous" d={path(previous)} />
-    <path className="weekly-line current" d={path(current)} />
-    {days.map((day, index) => <g key={day.current}>
-      <circle className="weekly-dot previous" cx={x(index)} cy={y(previous[index])} r="4" />
-      <circle className="weekly-dot current" cx={x(index)} cy={y(current[index])} r="4" />
-      <text className="chart-date" x={x(index)} y="190" textAnchor="middle">{day.label}</text>
-    </g>)}
-  </svg>;
+  return <div className="weekly-recharts-chart" role="img" aria-label="Daily emissions for this week compared with the same days last week">
+    <ResponsiveContainer width="100%" height={230}>
+      <LineChart data={data} margin={{ top: 10, right: 16, bottom: 4, left: 2 }}>
+        <CartesianGrid stroke="#edf1ed" strokeDasharray="4 4" vertical={false} />
+        <XAxis dataKey="day" tick={{ fill: "#87958b", fontSize: 10 }} axisLine={false} tickLine={false} />
+        <YAxis width={48} tick={{ fill: "#87958b", fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={(value) => Number(value).toFixed(1)} />
+        <Tooltip formatter={(value) => [kg(value, 3) + " kg CO₂e"]} />
+        <Line type="monotone" dataKey="current" name="Current week" stroke="#4d8a70" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls />
+        <Line type="monotone" dataKey="previous" name="Previous week" stroke="#c99e42" strokeWidth={2.5} strokeDasharray="6 5" dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls />
+      </LineChart>
+    </ResponsiveContainer>
+  </div>;
 }
 
 function GoalProjectionCard({ projection, goal }) {
