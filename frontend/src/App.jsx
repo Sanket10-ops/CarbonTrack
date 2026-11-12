@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { api, clearToken, getToken, setToken } from "./api.js";
 import LeaderboardPage from "./pages/LeaderboardPage.jsx";
 import OrganisationPage from "./pages/OrganisationPage.jsx";
+import ChatAssistant from "./ChatAssistant.jsx";
 import "./milestone3.css";
 
 const NAV = [
@@ -583,6 +584,7 @@ function App() {
       </div>
     </main>
     {notice && <div className="toast"><span>✓</span>{notice}<button onClick={() => setNotice("")}>×</button></div>}
+    <ChatAssistant />
   </div>;
 }
 
