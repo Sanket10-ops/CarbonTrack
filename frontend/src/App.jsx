@@ -221,7 +221,24 @@ function GoalProjectionCard({ projection, goal }) {
       <i className="projection-target" style={{ width: targetWidth + "%" }} />
       <i className="projection-current" style={{ width: projectedWidth + "%" }} />
     </div>
-    <div className="projection-legend"><span><i className="projection-target-key" /> Goal allowance</span><span><i className="projection-current-key" /> Current-pace projection</span></div>
+    <div className="projection-legend">
+      <span><i className="projection-observed-key" /> Observed</span>
+      <span><i className="projection-current-key" /> Projected pace</span>
+      <span><i className="projection-target-key" /> Goal trajectory</span>
+    </div>
+    <div className="goal-timeline-chart" role="img" aria-label="Observed, projected and target cumulative emissions across the goal period">
+      <ResponsiveContainer width="100%" height={230}>
+        <LineChart data={projection.timeline} margin={{ top: 10, right: 14, bottom: 4, left: 2 }}>
+          <CartesianGrid stroke="#edf1ed" strokeDasharray="4 4" vertical={false} />
+          <XAxis dataKey="label" interval={Math.max(0, Math.floor(projection.periodDays / 8))} tick={{ fill: "#87958b", fontSize: 9 }} axisLine={false} tickLine={false} />
+          <YAxis width={52} tick={{ fill: "#87958b", fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={(value) => Number(value).toFixed(0)} />
+          <Tooltip formatter={(value) => value == null ? ["—"] : [kg(value, 3) + " kg CO₂e"]} />
+          <Line type="monotone" dataKey="actual" name="Observed footprint" stroke="#4d8a70" strokeWidth={3} dot={false} connectNulls={false} />
+          <Line type="monotone" dataKey="projected" name="Projected footprint" stroke="#4d8a70" strokeWidth={2.5} strokeDasharray="6 5" dot={false} connectNulls={false} />
+          <Line type="monotone" dataKey="target" name="Goal trajectory" stroke="#c99e42" strokeWidth={2} dot={false} connectNulls />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
     <div className="projection-footer">
       <b>{projection.dailyReductionNeeded > 0
         ? "Daily reduction needed: " + kg(projection.dailyReductionNeeded, 3) + " kg CO₂e/day"
@@ -486,6 +503,27 @@ function App() {
       ? Math.max(0, remainingBudget / remainingDays) : 0;
     const dailyReductionNeeded = remainingDays > 0
       ? Math.max(0, currentDaily - requiredDailyAllowance) : 0;
+    const dailyTotals = new Map();
+    activities.forEach((activity) => {
+      const date = String(activity.logDate || "").slice(0, 10);
+      if (date >= currentGoal.startDate && date <= today()) {
+        dailyTotals.set(date, (dailyTotals.get(date) || 0) + Number(activity.co2eKg || 0));
+      }
+    });
+    let cumulative = 0;
+    const timeline = Array.from({ length: periodDays + 1 }, (_, dayNumber) => {
+      if (dayNumber > 0 && dayNumber <= elapsedDays) {
+        const date = shiftIsoDate(currentGoal.startDate, dayNumber - 1);
+        cumulative += dailyTotals.get(date) || 0;
+      }
+      if (dayNumber === elapsedDays) cumulative = currentObserved;
+      return {
+        label: dayNumber === 0 ? "Start" : dayNumber === elapsedDays ? "Today" : dayNumber === periodDays ? "End" : "Day " + dayNumber,
+        actual: dayNumber <= elapsedDays ? cumulative : null,
+        projected: dayNumber >= elapsedDays ? currentObserved + currentDaily * (dayNumber - elapsedDays) : null,
+        target: targetTotal * dayNumber / periodDays
+      };
+    });
     return {
       baselineTotal,
       targetTotal,
@@ -493,9 +531,12 @@ function App() {
       remainingDays,
       dailyReductionNeeded,
       onTrack: projectedFinal <= targetTotal,
-      endDate: currentGoal.progress.endDate
+      endDate: currentGoal.progress.endDate,
+      periodDays,
+      timeline,
+      elapsedDays
     };
-  }, [currentGoal]);
+  }, [currentGoal, activities]);
 
   const selectedActivityType = TYPES[activityForm.category].find((t) => t[0] === activityForm.activityType);
   const selectedEmissionFactor = emissionFactors.find((factor) =>
