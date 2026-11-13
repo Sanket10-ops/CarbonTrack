@@ -1,127 +1,27 @@
-import "./landing.css";
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import FadeContent from "./reactbits/FadeContent.jsx";
+import DepthCarousel from "./reactbits/DepthCarousel.jsx";
+import AnimatedList from "./reactbits/AnimatedList.jsx";
+import ScrollStack, { ScrollStackItem } from "./reactbits/ScrollStack.jsx";
+import "./reactbits/DepthCarousel.css";
+import "./reactbits/AnimatedList.css";
+import "./reactbits/ScrollStack.css";
+import "./immersive-ui.css";
 
-const featureCards = [
-  {
-    number: "01",
-    eyebrow: "MEASURE",
-    title: "Make the invisible visible.",
-    body: "Log transport, electricity, food and shopping choices. CarbonTrack turns everyday quantities into comparable CO₂e estimates.",
-    tone: "mint",
-    icon: "◉"
-  },
-  {
-    number: "02",
-    eyebrow: "UNDERSTAND",
-    title: "Find the changes that matter.",
-    body: "Read your category mix, compare weekly patterns and see where your footprint is really coming from.",
-    tone: "gold",
-    icon: "◌"
-  },
-  {
-    number: "03",
-    eyebrow: "IMPROVE",
-    title: "Turn intention into momentum.",
-    body: "Set a reduction goal, follow your progress and use practical recommendations to make your next choice count.",
-    tone: "violet",
-    icon: "↗"
-  }
+const carouselItems = [
+  { image: "/visuals/activity-impact.svg", alt: "Measure everyday activities and their environmental impact" },
+  { image: "/visuals/category-insight.svg", alt: "Understand the emissions categories behind your footprint" },
+  { image: "/visuals/goal-trajectory.svg", alt: "Follow a reduction goal and its progress trajectory" },
+  { image: "/visuals/community-network.svg", alt: "Join optional anonymous community progress" }
 ];
 
-const journeyItems = [
-  { number: "01", title: "Record a real-world action", text: "Choose a category, enter a quantity and see an estimated impact before saving." },
-  { number: "02", title: "Understand your footprint", text: "Use clear summaries and trends to see how your everyday decisions add up." },
-  { number: "03", title: "Choose your next improvement", text: "Set a target, follow your pace and build habits around measurable progress." },
-  { number: "04", title: "Make progress together", text: "Use opt-in community and organisation features without giving up control of your data." }
+const journey = [
+  { id: "measure", icon: "◉", title: "Log everyday activity", description: "Transport · electricity · food · shopping", meta: "01" },
+  { id: "preview", icon: "⌁", title: "See the CO₂e estimate", description: "Emission factors turn quantities into impact", meta: "02" },
+  { id: "understand", icon: "◌", title: "Read the patterns", description: "Compare categories and weekly trends", meta: "03" },
+  { id: "improve", icon: "↗", title: "Follow your next goal", description: "Track a target with a pace-based estimate", meta: "04" }
 ];
-
-function FadeContent({ children, className = "", delay = 0 }) {
-  const element = useRef(null);
-  useEffect(() => {
-    const node = element.current;
-    if (!node) return undefined;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || !("IntersectionObserver" in window)) {
-      node.dataset.visible = "true";
-      return undefined;
-    }
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.dataset.visible = "true";
-          observer.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.12, rootMargin: "0px 0px -40px 0px" });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
-  return <div ref={element} className={"fade-content " + className} style={{ "--fade-delay": delay + "ms" }}>{children}</div>;
-}
-
-function AnimatedList({ items, className = "" }) {
-  return <div className={"spiral-list " + className}>
-    {items.map((item, index) => (
-      <article className="spiral-list-item" key={item.number} style={{ "--item-index": index }}>
-        <span className="spiral-index">{item.number}</span>
-        <div><b>{item.title}</b><p>{item.text}</p></div>
-        <span className="spiral-arrow" aria-hidden="true">↗</span>
-      </article>
-    ))}
-  </div>;
-}
-
-function DepthCarousel({ items }) {
-  const [active, setActive] = useState(0);
-  const length = items.length;
-  const move = (amount) => setActive((current) => (current + amount + length) % length);
-  const touchStart = useRef(null);
-  return <div className="depth-carousel" onTouchStart={(event) => { touchStart.current = event.touches[0].clientX; }} onTouchEnd={(event) => {
-    if (touchStart.current == null) return;
-    const delta = event.changedTouches[0].clientX - touchStart.current;
-    if (Math.abs(delta) > 45) move(delta < 0 ? 1 : -1);
-    touchStart.current = null;
-  }}>
-    <div className="depth-stage" aria-live="polite">
-      {items.map((item, index) => {
-        const offset = (index - active + length) % length;
-        const position = offset === 0 ? "front" : offset === 1 ? "right" : offset === length - 1 ? "left" : "hidden";
-        return <article key={item.number} className={"depth-card " + position + " depth-" + item.tone} aria-hidden={position !== "front"} style={{ "--depth-order": offset }}>
-          <div className="depth-card-top"><span>{item.eyebrow}</span><b>{item.number} / 03</b></div>
-          <div className="depth-icon">{item.icon}</div>
-          <h3>{item.title}</h3>
-          <p>{item.body}</p>
-          <span className="depth-card-line" />
-        </article>;
-      })}
-    </div>
-    <div className="depth-controls">
-      <div className="depth-dots" aria-label="Choose feature">
-        {items.map((item, index) => <button key={item.number} type="button" className={index === active ? "active" : ""} onClick={() => setActive(index)} aria-label={"Show " + item.eyebrow.toLowerCase() + " feature"} />)}
-      </div>
-      <div className="depth-arrows">
-        <button type="button" onClick={() => move(-1)} aria-label="Previous feature">←</button>
-        <button type="button" onClick={() => move(1)} aria-label="Next feature">→</button>
-      </div>
-    </div>
-  </div>;
-}
-
-function ScrollStack({ items }) {
-  return <div className="story-stack">
-    {items.map((item, index) => (
-      <article className={"story-card story-card-" + index} key={item.number} style={{ "--stack-index": index }}>
-        <span className="story-number">{item.number}</span>
-        <div className="story-content">
-          <span className="story-eyebrow">{item.eyebrow}</span>
-          <h3>{item.title}</h3>
-          <p>{item.body}</p>
-        </div>
-        <span className="story-symbol">{item.icon}</span>
-      </article>
-    ))}
-  </div>;
-}
 
 function ImpactScene() {
   const host = useRef(null);
@@ -132,81 +32,109 @@ function ImpactScene() {
     let scene;
     let resizeObserver;
     let onResize;
+    let animationFrame = 0;
     try {
-      scene = new THREE.Scene();
       const width = Math.max(1, root.clientWidth);
       const height = Math.max(1, root.clientHeight);
-      const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 80);
-      camera.position.set(0, 0, 7.2);
+      scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 80);
+      camera.position.set(0, 0, 7.6);
       renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: "low-power" });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, window.innerWidth < 700 ? 1.25 : 1.6));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, window.innerWidth < 700 ? 1.15 : 1.5));
       renderer.setSize(width, height);
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.15;
+      renderer.toneMappingExposure = 1.2;
       root.appendChild(renderer.domElement);
 
-      const world = new THREE.Group();
-      scene.add(world);
-      scene.add(new THREE.AmbientLight(0xffffff, 1.6));
-      const keyLight = new THREE.PointLight(0xb4f2ba, 34, 18);
-      keyLight.position.set(-3, 3, 5);
-      scene.add(keyLight);
-      const rimLight = new THREE.PointLight(0xe0c77c, 22, 14);
-      rimLight.position.set(4, -2, -3);
-      scene.add(rimLight);
+      const group = new THREE.Group();
+      scene.add(group);
+      scene.add(new THREE.AmbientLight(0x9abca7, 1.1));
+      const light = new THREE.PointLight(0x9ce78b, 25, 18);
+      light.position.set(-3.5, 2.5, 4.5);
+      scene.add(light);
+      const violet = new THREE.PointLight(0xc77de9, 15, 15);
+      violet.position.set(3, -2.5, -2);
+      scene.add(violet);
 
-      const planet = new THREE.Mesh(
-        new THREE.SphereGeometry(1.48, 64, 64),
-        new THREE.MeshPhysicalMaterial({ color: 0x246747, roughness: 0.34, metalness: 0.12, clearcoat: 0.9, clearcoatRoughness: 0.22 })
+      const globe = new THREE.Mesh(
+        new THREE.SphereGeometry(1.61, 48, 48),
+        new THREE.MeshBasicMaterial({ color: 0x10251e, transparent: true, opacity: 0.72, wireframe: true })
       );
-      world.add(planet);
+      group.add(globe);
 
-      const shell = new THREE.Mesh(
-        new THREE.SphereGeometry(1.58, 40, 40),
-        new THREE.MeshBasicMaterial({ color: 0x9be3a0, transparent: true, opacity: 0.08, side: THREE.BackSide })
-      );
-      world.add(shell);
-
-      const wire = new THREE.Mesh(
-        new THREE.SphereGeometry(1.51, 28, 18),
-        new THREE.MeshBasicMaterial({ color: 0xb0e8b3, wireframe: true, transparent: true, opacity: 0.16 })
-      );
-      world.add(wire);
-
-      const ringA = new THREE.Mesh(
-        new THREE.TorusGeometry(2.03, 0.012, 8, 160),
-        new THREE.MeshBasicMaterial({ color: 0xc3df9c, transparent: true, opacity: 0.68 })
-      );
-      ringA.rotation.set(1.02, 0.24, -0.24);
-      world.add(ringA);
-      const ringB = new THREE.Mesh(
-        new THREE.TorusGeometry(2.34, 0.008, 8, 160),
-        new THREE.MeshBasicMaterial({ color: 0xe2c879, transparent: true, opacity: 0.54 })
-      );
-      ringB.rotation.set(0.28, 1.1, 0.52);
-      world.add(ringB);
-
-      const points = [];
-      for (let index = 0; index < 420; index += 1) {
-        const y = 1 - (index / 419) * 2;
+      const pointPositions = [];
+      const pointColors = [];
+      const count = 2300;
+      const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+      const lime = new THREE.Color(0xc7f58a);
+      const pale = new THREE.Color(0x92d8cf);
+      const purple = new THREE.Color(0xc28be8);
+      for (let i = 0; i < count; i += 1) {
+        const y = 1 - (i / (count - 1)) * 2;
         const radius = Math.sqrt(1 - y * y);
-        const angle = Math.PI * (3 - Math.sqrt(5)) * index;
-        points.push(Math.cos(angle) * radius * 1.68, y * 1.68, Math.sin(angle) * radius * 1.68);
+        const theta = goldenAngle * i;
+        const x = Math.cos(theta) * radius;
+        const z = Math.sin(theta) * radius;
+        const latitude = Math.asin(y);
+        const longitude = Math.atan2(z, x);
+        const continentA = Math.pow((Math.sin(longitude * 2.2 + 0.5) * 0.55 + Math.cos(latitude * 3.1) * 0.42), 2);
+        const continentB = Math.pow((Math.cos(longitude * 1.8 - 1.3) * 0.5 + Math.sin(latitude * 4.5) * 0.5), 2);
+        const isLand = continentA > 0.27 || continentB > 0.31;
+        const r = 1.64 + (Math.sin(i * 8.73) * 0.008);
+        pointPositions.push(x * r, y * r, z * r);
+        const color = isLand ? lime.clone().lerp(pale, Math.abs(y) * 0.55) : pale.clone().lerp(purple, (Math.sin(i * 0.11) + 1) * 0.12);
+        pointColors.push(color.r, color.g, color.b);
       }
       const pointGeometry = new THREE.BufferGeometry();
-      pointGeometry.setAttribute("position", new THREE.Float32BufferAttribute(points, 3));
-      const stars = new THREE.Points(pointGeometry, new THREE.PointsMaterial({ color: 0xd4f1b2, size: 0.025, transparent: true, opacity: 0.86, sizeAttenuation: true }));
-      world.add(stars);
+      pointGeometry.setAttribute("position", new THREE.Float32BufferAttribute(pointPositions, 3));
+      pointGeometry.setAttribute("color", new THREE.Float32BufferAttribute(pointColors, 3));
+      const dots = new THREE.Points(pointGeometry, new THREE.PointsMaterial({
+        size: 0.018,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.9,
+        sizeAttenuation: true,
+        depthWrite: false
+      }));
+      group.add(dots);
+
+      const outerGlow = new THREE.Mesh(
+        new THREE.SphereGeometry(1.73, 48, 48),
+        new THREE.MeshBasicMaterial({ color: 0x9de5ac, transparent: true, opacity: 0.035, side: THREE.BackSide })
+      );
+      group.add(outerGlow);
+
+      const makeOrbit = (radius, tube, color, rotation, opacity) => {
+        const mesh = new THREE.Mesh(
+          new THREE.TorusGeometry(radius, tube, 6, 180),
+          new THREE.MeshBasicMaterial({ color, transparent: true, opacity })
+        );
+        mesh.rotation.set(rotation[0], rotation[1], rotation[2]);
+        group.add(mesh);
+        return mesh;
+      };
+      const orbitA = makeOrbit(2.12, 0.009, 0xd17be6, [1.07, 0.27, -0.2], 0.78);
+      const orbitB = makeOrbit(2.35, 0.007, 0x9de57b, [0.35, 1.14, 0.56], 0.73);
+      const orbitC = makeOrbit(2.58, 0.005, 0x8b9cde, [1.43, -0.4, 0.85], 0.42);
 
       const satellites = new THREE.Group();
-      const satelliteMaterial = new THREE.MeshStandardMaterial({ color: 0xe6d18b, emissive: 0x594321, emissiveIntensity: 0.7, roughness: 0.28, metalness: 0.5 });
-      [[2.02, 0.2, 0.1], [-1.8, 0.95, 0.25], [0.4, -2.15, -0.35], [1.42, 1.5, -0.55]].forEach((point, index) => {
-        const node = new THREE.Mesh(new THREE.SphereGeometry(index === 0 ? 0.085 : 0.052, 18, 18), satelliteMaterial);
-        node.position.set(point[0], point[1], point[2]);
+      const satMaterial = new THREE.MeshStandardMaterial({ color: 0xe7efa7, emissive: 0x647b32, emissiveIntensity: 1.1, metalness: 0.45, roughness: 0.28 });
+      [[2.12, 0.15, 0.1], [-1.86, 0.94, 0.24], [0.35, -2.1, -0.35], [1.46, 1.47, -0.5]].forEach((p, i) => {
+        const node = new THREE.Mesh(new THREE.SphereGeometry(i === 0 ? 0.075 : 0.047, 16, 16), satMaterial);
+        node.position.set(p[0], p[1], p[2]);
         satellites.add(node);
       });
-      world.add(satellites);
+      group.add(satellites);
+
+      const starsGeometry = new THREE.BufferGeometry();
+      const stars = [];
+      for (let i = 0; i < 500; i += 1) {
+        stars.push((Math.random() - 0.5) * 12, (Math.random() - 0.5) * 9, -2 - Math.random() * 5);
+      }
+      starsGeometry.setAttribute("position", new THREE.Float32BufferAttribute(stars, 3));
+      const starField = new THREE.Points(starsGeometry, new THREE.PointsMaterial({ color: 0x9caeaa, size: 0.012, transparent: true, opacity: 0.6 }));
+      scene.add(starField);
 
       onResize = () => {
         if (!root.clientWidth || !root.clientHeight) return;
@@ -221,19 +149,21 @@ function ImpactScene() {
         window.addEventListener("resize", onResize);
       }
 
-      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      if (reduced) {
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (reduce) {
         renderer.render(scene, camera);
       } else {
-        let lastFrame = 0;
+        let last = 0;
         renderer.setAnimationLoop((time) => {
-          if (time - lastFrame < 32) return;
-          lastFrame = time;
-          world.rotation.y = time * 0.00009;
-          world.rotation.x = Math.sin(time * 0.00016) * 0.055;
-          ringA.rotation.z = -0.24 + Math.sin(time * 0.00018) * 0.08;
-          ringB.rotation.y = 1.1 + Math.cos(time * 0.00014) * 0.12;
-          satellites.rotation.y = -time * 0.00013;
+          if (time - last < 32) return;
+          last = time;
+          group.rotation.y = time * 0.0001;
+          group.rotation.x = Math.sin(time * 0.00012) * 0.045;
+          orbitA.rotation.z = -0.2 + Math.sin(time * 0.00013) * 0.11;
+          orbitB.rotation.x = 0.35 + Math.cos(time * 0.00011) * 0.1;
+          orbitC.rotation.y = -0.4 + Math.sin(time * 0.00009) * 0.08;
+          satellites.rotation.y = -time * 0.00017;
+          starField.rotation.z = time * 0.000004;
           renderer.render(scene, camera);
         });
       }
@@ -242,38 +172,28 @@ function ImpactScene() {
     }
 
     return () => {
+      cancelAnimationFrame(animationFrame);
       if (renderer) {
         renderer.setAnimationLoop(null);
         renderer.dispose();
         if (renderer.domElement.parentNode === root) root.removeChild(renderer.domElement);
       }
-      if (resizeObserver) resizeObserver.disconnect();
-      else if (onResize) window.removeEventListener("resize", onResize);
-      if (scene) {
-        scene.traverse((object) => {
-          if (object.geometry) object.geometry.dispose();
-          if (object.material) {
-            const materials = Array.isArray(object.material) ? object.material : [object.material];
-            materials.forEach((material) => material.dispose());
-          }
-        });
-      }
+      resizeObserver?.disconnect();
+      if (!resizeObserver && onResize) window.removeEventListener("resize", onResize);
+      scene?.traverse((object) => {
+        object.geometry?.dispose();
+        if (object.material) {
+          const materials = Array.isArray(object.material) ? object.material : [object.material];
+          materials.forEach((material) => material.dispose());
+        }
+      });
     };
   }, []);
 
   return <div ref={host} className="impact-scene" aria-hidden="true">
-    <div className="scene-orbit scene-orbit-one" />
-    <div className="scene-orbit scene-orbit-two" />
-    <div className="scene-glow" />
-    <span className="scene-fallback-mark">c</span>
+    <div className="impact-scene-grid" />
+    <div className="impact-scene-fallback">c</div>
   </div>;
-}
-
-function Brand() {
-  return <a href="#top" className="landing-brand" aria-label="CarbonTrack home">
-    <span className="landing-brand-mark">c</span>
-    <span>carbon<span>track</span><small>MAKE IMPACT VISIBLE</small></span>
-  </a>;
 }
 
 function AuthDialog({ mode, setMode, onLogin, onRegister, busy, error, onClose }) {
@@ -285,137 +205,207 @@ function AuthDialog({ mode, setMode, onLogin, onRegister, busy, error, onClose }
     if (mode === "login") await onLogin(username, password);
     else await onRegister(username, email, password);
   }
-  return <div className="landing-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <section className="landing-auth-modal" role="dialog" aria-modal="true" aria-labelledby="landing-auth-title">
-      <button className="landing-modal-close" type="button" onClick={onClose} aria-label="Close sign in dialog">×</button>
-      <span className="landing-auth-kicker">YOUR NEXT STEP STARTS HERE</span>
-      <h2 id="landing-auth-title">{mode === "login" ? "Welcome back." : "Create your space."}</h2>
-      <p>{mode === "login" ? "Sign in to continue tracking your impact." : "Build a clearer picture of your everyday footprint."}</p>
-      <div className="landing-auth-tabs">
+  return <div className="immersive-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <section className="immersive-auth-modal" role="dialog" aria-modal="true" aria-labelledby="immersive-auth-title">
+      <button className="immersive-modal-close" type="button" onClick={onClose} aria-label="Close sign in dialog">×</button>
+      <div className="immersive-auth-orb" />
+      <span className="immersive-eyebrow">CARBONTRACK / YOUR PERSONAL SPACE</span>
+      <h2 id="immersive-auth-title">{mode === "login" ? "Welcome back." : "Start with one action."}</h2>
+      <p>{mode === "login" ? "Your footprint story continues here." : "Create an account to start measuring your everyday impact."}</p>
+      <div className="immersive-auth-tabs">
         <button type="button" className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>Sign in</button>
         <button type="button" className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>Create account</button>
       </div>
-      <form className="landing-auth-form" onSubmit={submit}>
+      <form className="immersive-auth-form" onSubmit={submit}>
         <label><span>Username</span><input required minLength={3} autoComplete="username" placeholder="Your username" value={username} onChange={(event) => setUsername(event.target.value)} /></label>
         {mode === "register" && <label><span>Email address</span><input required type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} /></label>}
         <label><span>Password</span><input required type="password" maxLength={72} minLength={mode === "register" ? 8 : undefined} autoComplete={mode === "login" ? "current-password" : "new-password"} placeholder={mode === "login" ? "Your password" : "At least 8 characters"} value={password} onChange={(event) => setPassword(event.target.value)} /></label>
-        {error && <div className="landing-auth-error" role="alert">{error}</div>}
-        <button className="landing-primary-button landing-auth-submit" type="submit" disabled={busy}>{busy ? "Please wait…" : mode === "login" ? "Sign in to CarbonTrack ↗" : "Create my account ↗"}</button>
+        {error && <div className="immersive-auth-error" role="alert">{error}</div>}
+        <button className="immersive-primary" type="submit" disabled={busy}>{busy ? "Please wait…" : mode === "login" ? "Enter CarbonTrack ↗" : "Create account ↗"}</button>
       </form>
-      <small className="landing-auth-privacy">Your footprint is personal. Your data stays under your control.</small>
+      <small className="immersive-auth-foot">Your personal records stay under your control.</small>
     </section>
   </div>;
 }
 
-export default function LandingPage({ onLogin, onRegister, busy, error }) {
+export default function LandingExperience({ onLogin, onRegister, busy, error }) {
   const [authMode, setAuthMode] = useState(null);
+  const [selectedJourney, setSelectedJourney] = useState("measure");
   const openAuth = (mode) => setAuthMode(mode);
-  return <div className="landing-page" id="top">
-    <div className="landing-noise" />
-    <header className="landing-header">
-      <Brand />
-      <nav className="landing-nav" aria-label="Main navigation">
-        <a href="#how-it-works">How it works</a>
-        <a href="#features">What you can track</a>
-        <a href="#principles">Our approach</a>
+  return <div className="immersive-landing" id="home">
+    <div className="immersive-grain" />
+    <header className="immersive-header">
+      <a className="immersive-brand" href="#home" aria-label="CarbonTrack home"><span>c</span><b>carbon<span>track</span><small>IMPACT, IN FOCUS</small></b></a>
+      <nav>
+        <a href="#experience">Experience</a>
+        <a href="#method">Method</a>
+        <a href="#privacy">Privacy</a>
       </nav>
-      <div className="landing-header-actions">
-        <button type="button" className="landing-login-button" onClick={() => openAuth("login")}>Sign in</button>
-        <button type="button" className="landing-primary-button landing-header-cta" onClick={() => openAuth("register")}>Get started <span>↗</span></button>
+      <div className="immersive-header-actions">
+        <button className="immersive-login" type="button" onClick={() => openAuth("login")}>Sign in</button>
+        <button className="immersive-primary immersive-header-cta" type="button" onClick={() => openAuth("register")}>Get started <span>↗</span></button>
       </div>
     </header>
 
     <main>
-      <section className="landing-hero">
-        <div className="landing-hero-copy">
-          <FadeContent>
-            <div className="landing-pill"><span /> PERSONAL CARBON TRACKING, MADE CLEAR</div>
-            <h1>Small choices.<br /><em>Lasting impact.</em></h1>
-            <p className="landing-lede">Your everyday decisions shape your footprint. CarbonTrack helps you measure them, understand the patterns and make changes that add up.</p>
-            <div className="landing-hero-actions">
-              <button type="button" className="landing-primary-button landing-hero-cta" onClick={() => openAuth("register")}>Start tracking your impact <span>↗</span></button>
-              <a className="landing-secondary-link" href="#how-it-works">Explore the experience <span>↓</span></a>
+      <section className="immersive-hero">
+        <div className="immersive-hero-copy">
+          <FadeContent effect="focus" blur={7} duration={1.15} delay={0.1}>
+            <div className="immersive-status"><i /> PERSONAL CARBON INTELLIGENCE</div>
+            <h1>See your impact.<br /><em>Shift your orbit.</em></h1>
+            <p>CarbonTrack turns daily choices into a clearer picture of your footprint — then helps you decide what to change next.</p>
+            <div className="immersive-hero-actions">
+              <button className="immersive-primary immersive-hero-cta" type="button" onClick={() => openAuth("register")}>Start tracking <span>↗</span></button>
+              <a href="#experience" className="immersive-hero-link">Explore the system <span>↓</span></a>
             </div>
-            <div className="landing-proof-row">
-              <span><i>✓</i> Personal footprint insights</span>
-              <span><i>✓</i> Goals you can measure</span>
+            <div className="immersive-proof">
+              <span><i>01</i> Activity intelligence</span>
+              <span><i>02</i> Goal trajectories</span>
+              <span><i>03</i> Opt-in community</span>
             </div>
           </FadeContent>
         </div>
-        <div className="landing-hero-visual">
+        <div className="immersive-hero-visual">
           <ImpactScene />
-          <div className="floating-note note-top"><span className="note-icon">↗</span><div><b>Everyday impact</b><small>Turn activity into insight</small></div></div>
-          <div className="floating-note note-bottom"><span className="note-spark">✳</span><div><b>Progress, not perfection</b><small>One better choice at a time</small></div></div>
-          <div className="hero-side-caption">A CLEARER VIEW OF YOUR FOOTPRINT <span>01 / 03</span></div>
+          <div className="immersive-orbit-label orbit-label-one"><span className="orbit-label-dot lime" /><div><b>PERSONAL IMPACT</b><small>Measure what you do</small></div></div>
+          <div className="immersive-orbit-label orbit-label-two"><span className="orbit-label-dot violet" /><div><b>REDUCTION PATH</b><small>Follow your progress</small></div></div>
+          <div className="immersive-coordinate">12° 58' N / 77° 35' E <span>GLOBAL VIEW / 001</span></div>
         </div>
-        <div className="landing-scroll-cue"><span /> SCROLL TO EXPLORE</div>
+        <div className="immersive-side-note">A BETTER VIEW OF EVERYDAY IMPACT <span>SCROLL TO EXPLORE ↓</span></div>
       </section>
 
-      <section className="landing-signal-strip">
-        <div><span>01</span><b>MEASURE</b><small>Everyday activities</small></div>
-        <div><span>02</span><b>UNDERSTAND</b><small>Patterns and categories</small></div>
-        <div><span>03</span><b>IMPROVE</b><small>Goals and habits</small></div>
-        <p>Not another number to chase. A clearer way to choose.</p>
+      <section className="immersive-marquee">
+        <span>MEASURE</span><i /> <span>UNDERSTAND</span><i /> <span>IMPROVE</span><i /> <span>REPEAT</span><i /> <span>MEASURE</span>
       </section>
 
-      <section className="landing-section landing-how" id="how-it-works">
-        <FadeContent className="landing-section-heading">
-          <span className="landing-section-kicker">A SIMPLE, USEFUL ROUTINE</span>
-          <h2>From daily actions<br /><em>to visible progress.</em></h2>
-          <p>CarbonTrack brings activity logging, footprint analytics and reduction goals into one connected workspace.</p>
-        </FadeContent>
-        <div className="landing-how-grid">
-          <div className="landing-how-intro">
-            <span className="orbit-number">A / 03</span>
-            <h3>Make your next choice with context.</h3>
-            <p>Start with the things you already do. Add a little context, understand the impact and use that information to decide what to change next.</p>
-            <a href="#features">See the features <span>↗</span></a>
-            <div className="mini-orbit"><span /><span /><span /></div>
+      <section className="immersive-section immersive-experience" id="experience">
+        <div className="immersive-section-heading">
+          <FadeContent effect="develop" blur={4}>
+            <span className="immersive-eyebrow">01 / THE CARBONTRACK SYSTEM</span>
+            <h2>One footprint.<br /><em>Many dimensions.</em></h2>
+          </FadeContent>
+          <p>Your activity data becomes a connected view of impact, patterns and momentum. Explore the system in depth.</p>
+        </div>
+        <FadeContent effect="fade" blur={3} delay={0.05}>
+          <div className="immersive-depth-wrap">
+            <DepthCarousel
+              items={carouselItems}
+              cardWidth={360}
+              cardHeight={440}
+              radius={18}
+              tint="#070b0a"
+              depth={220}
+              spread={105}
+              tilt={24}
+              perspective={1500}
+              visibleCards={3}
+              falloff={0.22}
+              blur={2.5}
+              duration={760}
+              autoplay
+              autoplayDelay={4300}
+              loop
+              showControls
+              showIndicators
+              className="immersive-depth-carousel"
+            />
+            <div className="immersive-carousel-caption"><span>INTERACTIVE FEATURE GALLERY</span><span>DRAG / SCROLL / SELECT</span></div>
           </div>
-          <AnimatedList items={journeyItems} />
-        </div>
+        </FadeContent>
       </section>
 
-      <section className="landing-section landing-features" id="features">
-        <div className="landing-feature-heading">
-          <FadeContent>
-            <span className="landing-section-kicker">BUILT AROUND YOUR EVERYDAY</span>
-            <h2>Everything connected.<br /><em>Nothing complicated.</em></h2>
+      <section className="immersive-section immersive-method" id="method">
+        <div className="immersive-method-copy">
+          <FadeContent effect="focus" blur={5}>
+            <span className="immersive-eyebrow">02 / FROM ACTION TO INSIGHT</span>
+            <h2>Small actions.<br /><em>Clear signals.</em></h2>
+            <p>Start with a simple activity log. Follow the data through to a practical next step, with no extra complexity in the workflow.</p>
           </FadeContent>
-          <p>Move from a single activity to a bigger picture with tools that stay focused on useful, understandable information.</p>
+          <div className="immersive-selected-step"><span>SELECTED STEP</span><b>{journey.find((item) => item.id === selectedJourney)?.title || "Log everyday activity"}</b><small>{journey.find((item) => item.id === selectedJourney)?.description || ""}</small></div>
         </div>
-        <DepthCarousel items={featureCards} />
+        <div className="immersive-list-wrap">
+          <AnimatedList
+            items={journey}
+            initialSelectedIndex={0}
+            selectOnHover
+            enableArrowNavigation
+            loop
+            animation="pop"
+            stagger={0.07}
+            showGradients
+            displayScrollbar={false}
+            frame
+            theme="dark"
+            accentColor="#c9f47a"
+            radius={15}
+            gap={9}
+            width="100%"
+            maxHeight={360}
+            className="immersive-animated-list"
+            onItemSelect={(item) => setSelectedJourney(item.id)}
+            renderItem={(item, index, selected) => <><span className="immersive-list-icon">{item.icon}</span><span className="animated-list__text"><span className="animated-list__title">{item.title}</span><span className="animated-list__description">{item.description}</span></span><span className="immersive-list-number">{item.meta}</span></>}
+          />
+          <span className="immersive-list-foot">KEYBOARD ↑ ↓ / ENTER TO SELECT</span>
+        </div>
       </section>
 
-      <section className="landing-section landing-principles" id="principles">
-        <div className="landing-principles-top">
-          <FadeContent>
-            <span className="landing-section-kicker">DESIGNED FOR REAL PROGRESS</span>
-            <h2>Clarity first.<br /><em>Action follows.</em></h2>
+      <section className="immersive-section immersive-stack-section" id="privacy">
+        <div className="immersive-section-heading">
+          <FadeContent effect="fade" blur={4}>
+            <span className="immersive-eyebrow">03 / BUILT AROUND REAL PROGRESS</span>
+            <h2>Insight that leads<br /><em>somewhere useful.</em></h2>
           </FadeContent>
-          <p>A good footprint tracker should help you make sense of your data, keep your goals in view and make privacy choices explicit.</p>
+          <p>Three principles shape the experience: understand the data, keep goals practical, and make sharing a choice.</p>
         </div>
-        <ScrollStack items={[
-          { number: "01", eyebrow: "UNDERSTAND YOUR DATA", title: "See the full picture, not just a score.", body: "Use your activity history, category breakdown and weekly comparisons to spot the patterns behind your footprint.", icon: "◉" },
-          { number: "02", eyebrow: "KEEP GOALS PRACTICAL", title: "Make the next step feel achievable.", body: "Set a target that makes sense for you, then follow recorded progress and a clearly labelled pace-based estimate.", icon: "↗" },
-          { number: "03", eyebrow: "PRIVACY BY CHOICE", title: "Your data. Your decision to share.", body: "Community ranking and organisation reporting are opt-in. Your individual account remains yours to manage.", icon: "⌑" }
-        ]} />
+        <ScrollStack
+          useWindowScroll
+          itemDistance={90}
+          itemStackDistance={26}
+          stackPosition="17%"
+          itemScale={0.055}
+          baseScale={0.94}
+          dimAmount={0.24}
+          blurAmount={0.2}
+          tiltAmount={0.5}
+          rotationAmount={0.4}
+          holdDistance={140}
+          smoothScroll={false}
+          snap={false}
+          className="immersive-scroll-stack"
+        >
+          <ScrollStackItem itemClassName="immersive-stack-card stack-card-green">
+            <span className="immersive-stack-index">01 / PERSONAL ANALYTICS</span>
+            <div className="immersive-stack-main"><h3>See the whole picture,<br />not just one score.</h3><p>Read your category breakdown, daily footprint and weekly comparisons to find the patterns behind your impact.</p></div>
+            <span className="immersive-stack-symbol">◉</span>
+          </ScrollStackItem>
+          <ScrollStackItem itemClassName="immersive-stack-card stack-card-violet">
+            <span className="immersive-stack-index">02 / GOALS THAT MOVE</span>
+            <div className="immersive-stack-main"><h3>Follow the trajectory.<br />Choose your next move.</h3><p>Set a personal reduction target and compare observed emissions with a pace-based projection across the goal period.</p></div>
+            <span className="immersive-stack-symbol">↗</span>
+          </ScrollStackItem>
+          <ScrollStackItem itemClassName="immersive-stack-card stack-card-amber">
+            <span className="immersive-stack-index">03 / PRIVACY BY CHOICE</span>
+            <div className="immersive-stack-main"><h3>Share intentionally.<br />Keep control.</h3><p>Community ranking and organisation reporting use separate opt-in choices. Your individual account remains yours to manage.</p></div>
+            <span className="immersive-stack-symbol">⌑</span>
+          </ScrollStackItem>
+        </ScrollStack>
       </section>
 
-      <section className="landing-final-cta">
-        <div className="cta-orb" />
-        <span className="landing-section-kicker">YOUR FOOTPRINT IS A PLACE TO START</span>
-        <h2>Make the next choice<br /><em>a more informed one.</em></h2>
-        <p>Start with one activity. Build a clearer picture from there.</p>
-        <button type="button" className="landing-light-button" onClick={() => openAuth("register")}>Create your CarbonTrack account <span>↗</span></button>
-        <small>No perfection required. Just a place to begin.</small>
+      <section className="immersive-closing">
+        <div className="closing-orbit closing-orbit-one" /><div className="closing-orbit closing-orbit-two" />
+        <FadeContent effect="focus" blur={5}>
+          <span className="immersive-eyebrow">YOUR NEXT DECISION IS THE START</span>
+          <h2>Make the invisible<br /><em>measurable.</em></h2>
+          <p>One activity is enough to begin. The bigger picture follows.</p>
+          <button className="immersive-primary immersive-closing-cta" type="button" onClick={() => openAuth("register")}>Create your CarbonTrack account <span>↗</span></button>
+        </FadeContent>
       </section>
     </main>
 
-    <footer className="landing-footer">
-      <Brand />
+    <footer className="immersive-footer">
+      <a className="immersive-brand" href="#home"><span>c</span><b>carbon<span>track</span><small>IMPACT, IN FOCUS</small></b></a>
       <span>Measure what matters. Improve what you can.</span>
-      <div><a href="#top">Back to top ↑</a><span>CARBONTRACK · PERSONAL SUSTAINABILITY</span></div>
+      <a href="#home">BACK TO TOP ↑</a>
     </footer>
 
     {authMode && <AuthDialog mode={authMode} setMode={setAuthMode} onLogin={onLogin} onRegister={onRegister} busy={busy} error={error} onClose={() => setAuthMode(null)} />}
