@@ -114,8 +114,9 @@ public class OrganisationService {
                     member.getUsername(), memberTotal, memberCategories));
         }
 
-        employeeRows.sort(java.util.Comparator.comparing(
-                OrganisationDashboardResponse.EmployeeTotal::totalCo2eKg));
+        employeeRows.sort(java.util.Comparator
+                .comparing(OrganisationDashboardResponse.EmployeeTotal::totalCo2eKg)
+                .thenComparing(OrganisationDashboardResponse.EmployeeTotal::username));
 
         List<OrganisationDashboardResponse.MonthlyTotal> trend = months.entrySet().stream()
                 .map(entry -> new OrganisationDashboardResponse.MonthlyTotal(
