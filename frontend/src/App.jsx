@@ -3,8 +3,13 @@ import { api, clearToken, getToken, setToken } from "./api.js";
 import LeaderboardPage from "./pages/LeaderboardPage.jsx";
 import OrganisationPage from "./pages/OrganisationPage.jsx";
 import ChatAssistant from "./ChatAssistant.jsx";
+import AnimatedList from "./reactbits/AnimatedList.jsx";
+import ScrollStack, { ScrollStackItem } from "./reactbits/ScrollStack.jsx";
+import "./reactbits/AnimatedList.css";
+import "./reactbits/ScrollStack.css";
 import "./milestone3.css";
 import "./visual-refresh.css";
+import "./immersive-ui.css";
 import { CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 const LandingExperience = lazy(() => import("./LandingExperience.jsx"));
@@ -711,7 +716,7 @@ function App() {
             </section>
           </div>
           <GoalProjectionCard projection={goalProjection} goal={currentGoal || { periodDays: 30 }} />
-          <section className="surface recent-card"><div className="surface-title"><div><span className="kicker">YOUR LATEST RECORDS</span><h2>Recent activity</h2></div><button className="link-btn" onClick={() => go("activity")}>View activity log →</button></div><ActivityTable rows={activities.slice(0, 5)} compact onAll={() => go("activity")} /></section>
+          <section className="surface recent-card immersive-app-list-card"><div className="surface-title"><div><span className="kicker">YOUR LATEST RECORDS</span><h2>Recent activity</h2></div><button className="link-btn" onClick={() => go("activity")}>View activity log →</button></div>{activities.length ? <AnimatedList items={activities.slice(0, 8).map((a) => ({ id: a.id, icon: CATEGORIES[a.category]?.symbol || "◉", title: words(a.activityType), description: dateLabel(a.logDate) + " · " + kg(a.quantity) + " " + a.unit, meta: kg(a.co2eKg, 2) + " kg" }))} theme="dark" animation="pop" stagger={0.045} showGradients displayScrollbar width="100%" maxHeight={340} accentColor="#c6f27c" radius={13} gap={8} onItemSelect={() => go("activity")} /> : <Empty title="No activities yet" text="Your latest records will appear here after you log an activity." action={<Button onClick={() => { go("activity"); setShowActivityForm(true); }}>＋ Log activity</Button>} />}</section>
           {loading && <div className="loading"><span /> Refreshing your data…</div>}
         </>}
 
@@ -787,14 +792,14 @@ function App() {
               <Button type="submit" disabled={busy}>{busy ? "Creating…" : "Create goal →"}</Button>
             </form></section>
             <section><div className="section-subhead"><div><span className="kicker">YOUR COMMITMENTS</span><h2>Goal progress <small className="count">{goals.length}</small></h2></div></div>
-              {goals.length ? <div className="goal-list">{goals.map((g) => <GoalCard key={g.id} goal={g} />)}</div> : <section className="surface"><Empty title="No goals yet" text="Create your first reduction goal to start measuring progress." /></section>}
+              {goals.length ? <ScrollStack useWindowScroll itemDistance={66} itemStackDistance={18} stackPosition="18%" itemScale={0.035} baseScale={0.97} dimAmount={0.16} blurAmount={0} smoothScroll={false} className="goal-scroll-stack">{goals.map((g) => <ScrollStackItem key={g.id} itemClassName="goal-stack-item"><GoalCard goal={g} /></ScrollStackItem>)}</ScrollStack> : <section className="surface"><Empty title="No goals yet" text="Create your first reduction goal to start measuring progress." /></section>}
             </section>
           </div>
         </>}
 
         {page === "recommendations" && <>
           <PageHeading kicker="PRACTICAL NEXT STEPS" title="Recommendations" subtitle="Suggestions based on categories contributing most to your recorded emissions over the last 30 days." action={<Button kind="secondary" onClick={refreshData}>↻ Refresh</Button>} />
-          {recommendations.length ? <div className="recommendation-grid">{recommendations.map((r, i) => <article className="surface recommendation" key={r.category}><div className="recommendation-top"><span>0{i + 1}</span><Tag>{words(r.category)}</Tag></div><div className="recommendation-icon">{CATEGORIES[r.category]?.symbol || "✳"}</div><h2>{r.title}</h2><p>{r.action}</p><div className="recommendation-reason">ⓘ {r.reason}</div></article>)}</div> : <section className="surface"><Empty title="Recommendations will appear here" text="Log activities in transport, electricity, food or shopping. CarbonTrack will use those records to suggest practical changes." action={<Button onClick={() => { go("activity"); setShowActivityForm(true); }}>＋ Log activity</Button>} /></section>}
+          {recommendations.length ? <AnimatedList items={recommendations.map((r) => ({ id: r.category, icon: CATEGORIES[r.category]?.symbol || "✳", title: r.title, description: r.action, meta: words(r.category), reason: r.reason }))} theme="dark" animation="slide" stagger={0.06} showGradients displayScrollbar width="100%" maxHeight={430} accentColor="#c6f27c" radius={14} gap={9} onItemSelect={(item) => setNotice(item.reason)} /> : <section className="surface"><Empty title="Recommendations will appear here" text="Log activities in transport, electricity, food or shopping. CarbonTrack will use those records to suggest practical changes." action={<Button onClick={() => { go("activity"); setShowActivityForm(true); }}>＋ Log activity</Button>} /></section>}
         </>}
 
         {page === "achievements" && <>
