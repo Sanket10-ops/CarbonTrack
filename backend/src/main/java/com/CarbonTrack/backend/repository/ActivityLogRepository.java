@@ -46,7 +46,7 @@ public interface ActivityLogRepository
             from ActivityLog a
             where a.user.leaderboardOptIn = true
               and a.logDate between :fromDate and :toDate
-            group by a.user.id, a.category
+            group by a.user.id, a.category, a.activityType
             """)
     List<LeaderboardActivityProjection> aggregateOptedInLeaderboard(
             @Param("fromDate") LocalDate fromDate,
