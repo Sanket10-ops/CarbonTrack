@@ -59,9 +59,10 @@ export const api = {
     body: JSON.stringify({ username, email, password })
   }),
   activities: () => request("/api/activities"),
-  chat: (message) => request("/api/chat/message", {
+  chatStatus: () => request("/api/chat/status"),
+  chat: (message, history = [], useAi = false) => request("/api/chat/message", {
     method: "POST",
-    body: JSON.stringify({ message })
+    body: JSON.stringify({ message, history, useAi })
   }),
   emissionFactors: () => request("/api/emission-factors"),
   createActivity: (payload) => request("/api/activities", {
