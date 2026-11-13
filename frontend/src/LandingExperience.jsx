@@ -5,11 +5,9 @@ import DepthCarousel from "./reactbits/DepthCarousel.jsx";
 import AnimatedList from "./reactbits/AnimatedList.jsx";
 import ScrollStack, { ScrollStackItem } from "./reactbits/ScrollStack.jsx";
 import FluidGlass from "./reactbits/FluidGlass.jsx";
-import FluidGlass from "./reactbits/FluidGlass.jsx";
 import "./reactbits/DepthCarousel.css";
 import "./reactbits/AnimatedList.css";
 import "./reactbits/ScrollStack.css";
-import "./reactbits/FluidGlass.css";
 import "./reactbits/FluidGlass.css";
 import "./immersive-ui.css";
 
