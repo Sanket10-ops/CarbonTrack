@@ -4,9 +4,11 @@ import FadeContent from "./reactbits/FadeContent.jsx";
 import DepthCarousel from "./reactbits/DepthCarousel.jsx";
 import AnimatedList from "./reactbits/AnimatedList.jsx";
 import ScrollStack, { ScrollStackItem } from "./reactbits/ScrollStack.jsx";
+import FluidGlass from "./reactbits/FluidGlass.jsx";
 import "./reactbits/DepthCarousel.css";
 import "./reactbits/AnimatedList.css";
 import "./reactbits/ScrollStack.css";
+import "./reactbits/FluidGlass.css";
 import "./immersive-ui.css";
 
 const carouselItems = [
@@ -392,6 +394,30 @@ export default function LandingExperience({ onLogin, onRegister, busy, error }) 
       </section>
 
       <section className="immersive-closing">
+        <div className="immersive-closing-fluid" aria-hidden="true">
+          <FluidGlass
+            text=""
+            shape="lens"
+            shapes={["lens", "torus", "diamond"]}
+            size={215}
+            refraction={1.25}
+            dispersion={0.38}
+            reflection={1.15}
+            frost={0.12}
+            color="#d9f7c2"
+            tint={0.12}
+            shadow={0.35}
+            elevation={0.25}
+            interaction="static"
+            smoothness={0.62}
+            wobble={0.32}
+            spin={0.12}
+            idle
+            morphOnClick={false}
+            intro
+            maxDevicePixelRatio={1.5}
+          />
+        </div>
         <div className="closing-orbit closing-orbit-one" /><div className="closing-orbit closing-orbit-two" />
         <FadeContent effect="focus" blur={5}>
           <span className="immersive-eyebrow">YOUR NEXT DECISION IS THE START</span>
