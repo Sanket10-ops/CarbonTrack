@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { api, clearToken, getToken, setToken } from "./api.js";
 import LeaderboardPage from "./pages/LeaderboardPage.jsx";
 import OrganisationPage from "./pages/OrganisationPage.jsx";
 import ChatAssistant from "./ChatAssistant.jsx";
-import LandingExperience from "./LandingExperience.jsx";
+const LandingExperience = lazy(() => import("./LandingExperience.jsx"));
 import "./visual-refresh.css";
 import "./milestone3.css";
 import { CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -600,7 +600,7 @@ function App() {
   const pageLabel = NAV.find((n) => n[0] === page)?.[1] || "Overview";
   const greeting = useMemo(() => new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 17 ? "Good afternoon" : "Good evening", []);
   const firstName = (username || "there").split(/[._-]/)[0];
-  if (!authenticated) return <LandingExperience onLogin={login} onRegister={register} busy={authBusy} error={authError} />;
+  if (!authenticated) return <Suspense fallback={<div className="landing-loading">Preparing your CarbonTrack experience…</div>}><LandingExperience onLogin={login} onRegister={register} busy={authBusy} error={authError} /></Suspense>;
 
   return <div className="app-shell">
     {mobileNav && <button className="mobile-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation" />}
