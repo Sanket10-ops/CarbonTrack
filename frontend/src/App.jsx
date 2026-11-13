@@ -500,6 +500,7 @@ function App() {
       daysInMonth,
       elapsedDays,
       hasTarget: monthlyTarget > 0,
+      projectedMonthEnd: monthRows.length > 0 && elapsedDays > 0 ? actual / elapsedDays * daysInMonth : null,
       monthStart,
       activityCount: monthRows.length
     };
@@ -687,8 +688,12 @@ function App() {
                     <strong>{kg(monthMetrics.actual, 2)} <small>/ {kg(monthMetrics.monthlyTarget, 2)} kg</small></strong>
                     <div className="progress-track"><i style={{ width: monthMetrics.monthlyTarget > 0 ? Math.min(100, monthMetrics.actual / monthMetrics.monthlyTarget * 100) + "%" : "0%" }} /></div>
                     <p>{kg(monthMetrics.expectedToDate, 2)} kg expected by day {monthMetrics.elapsedDays} · monthly target set in Preferences</p>
+                    {monthMetrics.projectedMonthEnd !== null && <p className="month-run-rate">Month-end run-rate estimate: <b>{kg(monthMetrics.projectedMonthEnd, 2)} kg CO₂e</b> · {monthMetrics.projectedMonthEnd <= monthMetrics.monthlyTarget ? "currently within target pace" : "currently above target pace"}</p>}
                   </>
-                : <p className="m3-no-target">Set your monthly CO₂e target in Preferences to track progress here. <button className="link-btn" type="button" onClick={() => go("preferences")}>Set monthly target →</button></p>}
+                : <>
+                    {monthMetrics.projectedMonthEnd !== null && <p className="month-run-rate">At your current daily average, month-end could reach <b>{kg(monthMetrics.projectedMonthEnd, 2)} kg CO₂e</b>. This is a simple run-rate estimate, not a prediction.</p>}
+                    <p className="m3-no-target">Set your monthly CO₂e target in Preferences to track progress here. <button className="link-btn" type="button" onClick={() => go("preferences")}>Set monthly target →</button></p>
+                  </>}
             </section>
           </div>
           <section className="surface weekly-card">
