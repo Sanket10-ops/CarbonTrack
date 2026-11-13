@@ -63,3 +63,12 @@ body:has(.app-shell){background:#070b0a!important;color:#e8f0e7!important;color-
 .immersive-dashboard-carousel .depth-carousel__dots{bottom:4px;padding:6px 9px;background:#08100dcc}
 .immersive-dashboard-carousel .depth-carousel__dot.is-active{background:#c6f17e}
 @media(max-width:720px){.immersive-dashboard-gallery{grid-template-columns:1fr;padding:16px 13px;gap:2px}.immersive-dashboard-gallery-copy> b{max-width:none;margin-top:8px;font-size:15px}.immersive-dashboard-gallery-copy>small{max-width:none;margin-top:5px}.immersive-dashboard-carousel{height:280px!important;min-height:260px!important}}
+
+/* Landing FluidGlass and month-end forecast detail */
+.immersive-closing-fluid{position:absolute;inset:0;z-index:0;display:grid;place-items:center;pointer-events:none;opacity:.65;mask-image:radial-gradient(ellipse at center,#000 0%,#000 38%,transparent 74%)}
+.immersive-closing-fluid .fluid-glass{width:min(440px,78vw);height:min(390px,70vw);max-height:400px}
+.immersive-closing-fluid .fluid-glass__canvas{filter:drop-shadow(0 0 42px #c6ef7c22)}
+.immersive-closing>.closing-orbit{z-index:0}
+.immersive-closing>div:not(.immersive-closing-fluid):not(.closing-orbit){position:relative;z-index:2}
+.month-run-rate{margin-top:9px!important;padding-top:8px;border-top:1px solid #ffffff14;color:#a1b29f!important;font-size:9px!important;line-height:1.6}
+.month-run-rate b{color:#c7ef89}
