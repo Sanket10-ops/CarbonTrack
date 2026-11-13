@@ -59,6 +59,9 @@ public class LeaderboardService {
             String category = row.getCategory() == null
                     ? "other" : row.getCategory().toLowerCase(Locale.ROOT);
             builder.categoryTotals.merge(category, amount, BigDecimal::add);
+            String activityType = row.getActivityType() == null
+                    ? category : row.getActivityType().toLowerCase(Locale.ROOT);
+            builder.activityTypeTotals.merge(activityType, amount, BigDecimal::add);
         }
 
         if (byUser.isEmpty()) return List.of();
@@ -83,6 +86,10 @@ public class LeaderboardService {
                     builder.total,
                     alias(userId),
                     strongestCategory,
+                    builder.activityTypeTotals.entrySet().stream()
+                            .max(Map.Entry.<String, BigDecimal>comparingByValue()
+                                    .thenComparing(Map.Entry::getKey))
+                            .map(Map.Entry::getKey).orElse(strongestCategory),
                     List.copyOf(badgeNames.getOrDefault(userId, List.of()))));
         });
 
@@ -98,7 +105,7 @@ public class LeaderboardService {
                     item.total(),
                     item.strongestCategory(),
                     item.badges(),
-                    tip(item.strongestCategory())));
+                    tip(item.strongestCategory(), item.strongestActivityType())));
         }
         return result;
     }
@@ -133,25 +140,42 @@ public class LeaderboardService {
         }
     }
 
-    private String tip(String category) {
-        return switch (category) {
+    private String tip(String category, String activityType) {
+        return switch (activityType) {
+            case "car_travel" -> "Your recorded travel is led by car journeys. Try replacing one suitable solo trip with a shared ride, public transport, walking or cycling.";
+            case "motorcycle_travel" -> "Motorcycle travel is your leading recorded activity. Combine nearby errands and avoid unnecessary trips where practical.";
+            case "bus_travel" -> "Bus travel is your leading recorded activity. Keep using shared transport; consider walking or cycling for suitable short journeys.";
+            case "train_travel" -> "Train travel is your leading recorded activity. Rail is already a shared option; look for opportunities to combine journeys.";
+            case "flight_travel" -> "Flights are your leading recorded activity. Where practical, consider rail for shorter routes or combine trips to reduce flight frequency.";
+            case "grid_electricity" -> "Grid electricity is your leading recorded activity. Review high-use appliances and cooling settings, and switch off idle devices.";
+            case "beef" -> "Beef is your leading recorded food activity. Consider swapping one meal for a plant-based or lower-impact protein option.";
+            case "chicken" -> "Chicken is your leading recorded food activity. Try a plant-based protein option for one meal if it fits your diet.";
+            case "plant_based_food" -> "Your leading food activity is plant-based food. Keep logging meals consistently to make the category comparison more complete.";
+            case "clothing" -> "Clothing is your leading recorded shopping activity. Prioritise repair, reuse, second-hand items and durable purchases.";
+            case "electronics" -> "Electronics are your leading recorded shopping activity. Extend device life through repair and consider refurbished options when replacing.";
+            case "paper" -> "Paper is your leading recorded shopping activity. Use digital alternatives where suitable and recycle paper correctly.";
+            case "plastic" -> "Plastic is your leading recorded shopping activity. Choose reusable alternatives when practical and avoid unnecessary single-use items.";
+            default -> switch (category) {
             case "transport" -> "Try a shared, public or active travel option for suitable trips.";
             case "electricity" -> "Review high-use appliances and shift usage to efficient periods.";
             case "food" -> "Try a lower-impact meal option during the week.";
             case "shopping" -> "Prioritise durable products, repair and reuse.";
             default -> "Keep logging activities to identify your largest impact category.";
+            };
         };
     }
 
     private static final class RankedBuilder {
         private BigDecimal total = BigDecimal.ZERO;
         private final Map<String, BigDecimal> categoryTotals = new HashMap<>();
+        private final Map<String, BigDecimal> activityTypeTotals = new HashMap<>();
     }
 
     private record Ranked(
             BigDecimal total,
             String alias,
             String strongestCategory,
+            String strongestActivityType,
             List<String> badges) {
     }
 }
