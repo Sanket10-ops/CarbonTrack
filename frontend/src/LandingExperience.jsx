@@ -1,3 +1,4 @@
+import "./landing.css";
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
