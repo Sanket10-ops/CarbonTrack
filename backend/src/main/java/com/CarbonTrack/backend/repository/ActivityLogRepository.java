@@ -42,6 +42,7 @@ public interface ActivityLogRepository
     @Query("""
             select a.user.id as userId,
                    a.category as category,
+                   a.activityType as activityType,
                    sum(a.co2eKg) as totalEmissionsKg
             from ActivityLog a
             where a.user.leaderboardOptIn = true
