@@ -51,10 +51,10 @@ class LeaderboardServiceTest {
         LocalDate from = LocalDate.now().minusDays(1);
         LocalDate to = LocalDate.now();
 
+        LeaderboardActivityProjection car = row(10L, "transport", "car_travel", "5.00");
+        LeaderboardActivityProjection bus = row(10L, "transport", "bus_travel", "1.00");
         when(activities.aggregateOptedInLeaderboard(from, to))
-                .thenReturn(List.of(
-                        row(10L, "transport", "car_travel", "5.00"),
-                        row(10L, "transport", "bus_travel", "1.00")));
+                .thenReturn(List.of(car, bus));
         when(badges.findBadgeNamesForUsers(List.of(10L)))
                 .thenReturn(List.<UserBadgeNameProjection>of());
 
