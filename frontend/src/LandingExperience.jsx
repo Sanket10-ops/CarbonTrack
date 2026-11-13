@@ -222,21 +222,21 @@ function ImpactScene() {
       }
 
       const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      let lastFrame = 0;
-      renderer.setAnimationLoop((time) => {
-        if (reduced) {
-          renderer.render(scene, camera);
-          return;
-        }
-        if (time - lastFrame < 32) return;
-        lastFrame = time;
-        world.rotation.y = time * 0.00009;
-        world.rotation.x = Math.sin(time * 0.00016) * 0.055;
-        ringA.rotation.z = -0.24 + Math.sin(time * 0.00018) * 0.08;
-        ringB.rotation.y = 1.1 + Math.cos(time * 0.00014) * 0.12;
-        satellites.rotation.y = -time * 0.00013;
+      if (reduced) {
         renderer.render(scene, camera);
-      });
+      } else {
+        let lastFrame = 0;
+        renderer.setAnimationLoop((time) => {
+          if (time - lastFrame < 32) return;
+          lastFrame = time;
+          world.rotation.y = time * 0.00009;
+          world.rotation.x = Math.sin(time * 0.00016) * 0.055;
+          ringA.rotation.z = -0.24 + Math.sin(time * 0.00018) * 0.08;
+          ringB.rotation.y = 1.1 + Math.cos(time * 0.00014) * 0.12;
+          satellites.rotation.y = -time * 0.00013;
+          renderer.render(scene, camera);
+        });
+      }
     } catch {
       root.dataset.fallback = "true";
     }
