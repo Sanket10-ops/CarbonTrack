@@ -3,10 +3,11 @@ import { api, clearToken, getToken, setToken } from "./api.js";
 import LeaderboardPage from "./pages/LeaderboardPage.jsx";
 import OrganisationPage from "./pages/OrganisationPage.jsx";
 import ChatAssistant from "./ChatAssistant.jsx";
-const LandingExperience = lazy(() => import("./LandingExperience.jsx"));
-import "./visual-refresh.css";
 import "./milestone3.css";
+import "./visual-refresh.css";
 import { CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+
+const LandingExperience = lazy(() => import("./LandingExperience.jsx"));
 
 const NAV = [
   ["overview", "Overview", "▦", "WORKSPACE"],
