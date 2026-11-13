@@ -136,3 +136,74 @@ body{background:#f0f1e9!important;color:var(--ink)}
  .page-content .page-heading>.btn{width:auto}
 }
 @media(prefers-reduced-motion:reduce){.app-shell *{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}
+
+
+/* Spiral / staggered list treatment across signed-in views */
+@keyframes carbon-list-enter{from{opacity:0;transform:translateY(13px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+.recommendation-grid,.badge-grid,.goal-list{align-items:stretch}
+.recommendation-grid{gap:15px!important}
+.recommendation{position:relative!important;min-height:250px!important;padding:21px!important;overflow:hidden!important;transition:transform .24s,box-shadow .24s,border-color .24s!important;animation:carbon-list-enter .55s both;animation-delay:calc(var(--list-index,0)*70ms)}
+.recommendation:nth-child(1){--list-index:0}.recommendation:nth-child(2){--list-index:1}.recommendation:nth-child(3){--list-index:2}.recommendation:nth-child(4){--list-index:3}.recommendation:nth-child(5){--list-index:4}.recommendation:nth-child(6){--list-index:5}
+.recommendation:after{content:"";position:absolute;width:150px;height:150px;right:-68px;bottom:-82px;border:1px solid #d9e7cd;border-radius:50%;box-shadow:0 0 0 16px #f0f5e9,0 0 0 32px #f7f9f2}
+.recommendation:hover{transform:translateY(-5px)!important;border-color:#bfd5b2!important;box-shadow:0 17px 32px #24492d12!important}
+.recommendation-top{position:relative;z-index:1}
+.recommendation-top>span:first-child{color:#8eaa7a!important;font:800 9px Manrope,sans-serif!important;letter-spacing:1.4px}
+.recommendation-icon{display:grid!important;place-items:center!important;width:43px!important;height:43px!important;margin:25px 0 14px!important;border-radius:14px!important;background:#e8f1dc!important;color:#517d43!important;font-size:21px!important}
+.recommendation h2{max-width:300px!important;color:#25452e!important;font:800 18px/1.2 Manrope,sans-serif!important;letter-spacing:-.5px!important}
+.recommendation>p{max-width:390px!important;color:#7f8e80!important;font-size:10px!important;line-height:1.8!important}
+.recommendation-reason{position:relative;z-index:1;margin-top:auto!important;padding-top:13px!important;border-top:1px solid #edf1e8!important;color:#829080!important;font-size:9px!important;line-height:1.6!important}
+.goal-list{position:relative;display:grid;gap:14px;padding:4px 0 4px 24px}
+.goal-list:before{content:"";position:absolute;left:7px;top:17px;bottom:18px;width:1px;background:linear-gradient(#8fb878,#dce8d6)}
+.goal-list>.goal-card{position:relative;overflow:visible!important;border-radius:15px!important;transition:transform .2s,box-shadow .2s!important;animation:carbon-list-enter .55s both}
+.goal-list>.goal-card:before{content:"";position:absolute;left:-24px;top:24px;width:13px;height:13px;border:3px solid #f8faf3;border-radius:50%;background:#74a45f;box-shadow:0 0 0 1px #b6cfa8}
+.goal-list>.goal-card:hover{transform:translateX(4px)!important;box-shadow:0 13px 27px #234b3012!important}
+.goal-head h2,.goal-head h3{color:#2b4b32!important}
+.goal-stats{gap:9px!important}
+.goal-progress{border-radius:11px!important}
+.badge-grid{gap:14px!important}
+.badge-card{position:relative;min-height:145px!important;display:flex!important;align-items:center!important;gap:15px!important;padding:19px!important;overflow:hidden!important;animation:carbon-list-enter .55s both;transition:transform .22s,border-color .22s,box-shadow .22s!important}
+.badge-card:nth-child(1){animation-delay:50ms}.badge-card:nth-child(2){animation-delay:130ms}.badge-card:nth-child(3){animation-delay:210ms}
+.badge-card:hover{transform:translateY(-4px)!important;box-shadow:0 14px 27px #28482f12!important}
+.badge-art{flex:0 0 auto!important;width:53px!important;height:53px!important;display:grid!important;place-items:center!important;border-radius:17px!important;background:#edf2e7!important;color:#7c9567!important;font:800 22px Manrope,sans-serif!important}
+.badge-card.earned{border-color:#c7dcb9!important;background:linear-gradient(120deg,#fff,#f1f7e9)!important}
+.badge-card.earned .badge-art{background:#dcecc9!important;color:#4c7a3e!important}
+.badge-card h3{margin:5px 0!important;color:#34533a!important;font:800 13px Manrope,sans-serif!important}
+.badge-card p{margin:4px 0!important;color:#849184!important;font-size:9px!important;line-height:1.55!important}
+.badge-card>div{min-width:0;flex:1}
+.badge-card>span:last-child{flex:0 0 auto}
+.achievement-summary{display:grid!important;grid-template-columns:62px minmax(0,1fr) minmax(150px,.6fr)!important;align-items:center!important;gap:18px!important;padding:20px 23px!important;margin-bottom:16px!important}
+.achievement-symbol{display:grid!important;place-items:center!important;width:56px!important;height:56px!important;border-radius:17px!important;background:#e8f1dc!important;color:#557f46!important;font-size:25px!important}
+.achievement-summary h2{margin:5px 0!important;color:#23432d!important;font:800 22px Manrope,sans-serif!important}
+.achievement-summary h2 small{color:#8a9886!important;font:600 10px "DM Sans",sans-serif!important}
+.achievement-summary p{margin:3px 0!important;color:#8a9887!important;font-size:9px!important}
+.achievement-meter small{display:block;margin-top:7px;color:#849382!important;font-size:8px!important;text-align:right}
+.community-grid{gap:15px!important}
+.benchmark-card,.privacy-card{padding:22px!important}
+.benchmark-placeholder{border:1px dashed #d4e1cb!important;border-radius:14px!important;background:#f5f8ef!important}
+.privacy-card{background:linear-gradient(160deg,#eaf1e0,#f8faf3)!important}
+.privacy-lock{color:#5e874a!important}
+.activity-category-tabs{gap:8px!important;margin-bottom:20px!important}
+.activity-category-tabs button{padding:9px 15px!important;border-radius:999px!important}
+.quick-log-list{padding:7px 3px 14px!important}
+.quick-log-item{flex-basis:205px!important;min-height:132px!important;padding:14px!important;scroll-snap-align:start}
+.quick-log-item>span{width:32px!important;height:32px!important;border-radius:11px!important}
+.quick-log-item b{font:800 10px Manrope,sans-serif!important;color:#37563b!important}
+.quick-log-item em{color:#78936a!important}
+.activity-toolbar{border-color:#e6ece1!important}
+.account-grid>div{border:1px solid #e4eadf!important;border-radius:12px!important;background:#f7f9f2!important;padding:14px!important}
+.account-grid span{color:#879585!important}
+.account-grid b{color:#37583c!important}
+.section-subhead h2{color:#27452f!important}
+.form-card,.goal-create,.preferences-card,.privacy-card,.account-card,.table-card{border-radius:18px!important}
+.form-grid{gap:17px!important}
+.form-actions{gap:10px!important}
+.close-form{border:1px solid #e1e8dc!important;border-radius:50%!important;background:#f4f7ee!important;color:#60775d!important}
+@media(max-width:780px){
+ .achievement-summary{grid-template-columns:52px 1fr!important}
+ .achievement-meter{grid-column:1/-1}
+ .badge-card{align-items:flex-start!important;flex-wrap:wrap}
+ .badge-card>span:last-child{margin-left:68px}
+}
+@media(prefers-reduced-motion:reduce){
+ .recommendation,.badge-card{animation:none!important}
+}
