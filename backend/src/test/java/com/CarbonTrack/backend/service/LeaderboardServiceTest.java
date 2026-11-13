@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -28,7 +29,7 @@ class LeaderboardServiceTest {
                 LocalDate.now().minusDays(7), LocalDate.now()))
                 .thenReturn(List.of(secondTransport, first, secondFood));
         when(badges.findBadgeNamesForUsers(List.of(10L, 20L)))
-                .thenReturn(List.of());
+                .thenReturn(List.<UserBadgeNameProjection>of());
 
         LeaderboardService service = new LeaderboardService(
                 activities, badges, "test-only-secret-with-sufficient-length");
@@ -40,13 +41,42 @@ class LeaderboardServiceTest {
         assertEquals(1, result.get(0).rank());
         assertEquals(new BigDecimal("4.25"), result.get(0).totalCo2eKg());
         assertEquals("transport", result.get(0).strongestCategory());
-        assertEquals(true, result.get(0).displayAlias().matches("Eco-[0-9A-F]{16}"));
+        assertTrue(result.get(0).displayAlias().matches("Eco-[0-9A-F]{16}"));
+    }
+
+    @Test
+    void usesTheLeadingActivityTypeForSpecificHabitAdvice() {
+        ActivityLogRepository activities = mock(ActivityLogRepository.class);
+        UserBadgeRepository badges = mock(UserBadgeRepository.class);
+        LocalDate from = LocalDate.now().minusDays(1);
+        LocalDate to = LocalDate.now();
+
+        when(activities.aggregateOptedInLeaderboard(from, to))
+                .thenReturn(List.of(
+                        row(10L, "transport", "car_travel", "5.00"),
+                        row(10L, "transport", "bus_travel", "1.00")));
+        when(badges.findBadgeNamesForUsers(List.of(10L)))
+                .thenReturn(List.<UserBadgeNameProjection>of());
+
+        LeaderboardService service = new LeaderboardService(
+                activities, badges, "test-only-secret-with-sufficient-length");
+
+        var result = service.getLeaderboard(from, to, 50);
+
+        assertEquals(1, result.size());
+        assertTrue(result.get(0).habitTip().contains("car journeys"));
     }
 
     private LeaderboardActivityProjection row(Long userId, String category, String total) {
+        return row(userId, category, null, total);
+    }
+
+    private LeaderboardActivityProjection row(
+            Long userId, String category, String activityType, String total) {
         LeaderboardActivityProjection projection = mock(LeaderboardActivityProjection.class);
         when(projection.getUserId()).thenReturn(userId);
         when(projection.getCategory()).thenReturn(category);
+        when(projection.getActivityType()).thenReturn(activityType);
         when(projection.getTotalEmissionsKg()).thenReturn(new BigDecimal(total));
         return projection;
     }
