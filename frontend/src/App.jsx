@@ -4,8 +4,11 @@ import LeaderboardPage from "./pages/LeaderboardPage.jsx";
 import OrganisationPage from "./pages/OrganisationPage.jsx";
 import ChatAssistant from "./ChatAssistant.jsx";
 import AnimatedList from "./reactbits/AnimatedList.jsx";
+import DepthCarousel from "./reactbits/DepthCarousel.jsx";
+import FadeContent from "./reactbits/FadeContent.jsx";
 import ScrollStack, { ScrollStackItem } from "./reactbits/ScrollStack.jsx";
 import "./reactbits/AnimatedList.css";
+import "./reactbits/DepthCarousel.css";
 import "./reactbits/ScrollStack.css";
 import "./milestone3.css";
 import "./visual-refresh.css";
@@ -619,6 +622,7 @@ function App() {
     <main className="main-area">
       <header className="topbar"><div className="topbar-left"><button className="hamburger" onClick={() => setMobileNav(true)}>☰</button><span>Workspace <i>›</i> <b>{pageLabel}</b></span></div><div className="topbar-right"><span>◷ {dateLabel(today(), { weekday: "short", day: "numeric", month: "short" })}</span><span className="topbar-divider" /><span className="top-avatar">{(username || "C")[0].toUpperCase()}</span><b>{username}</b></div></header>
       <div className="page-content">
+        <FadeContent key={page} effect="focus" blur={2} duration={0.55} className="app-page-reveal">
         {warnings.length > 0 && <div className="alert alert-warning"><b>Some sections could not load.</b> {warnings.join(" · ")} <button onClick={refreshData}>Retry</button></div>}
         {actionError && <div className="alert alert-error">{actionError}<button onClick={() => setActionError("")}>×</button></div>}
 
@@ -646,6 +650,12 @@ function App() {
             <span className="hero-decoration hero-decoration-one" />
             <span className="hero-decoration hero-decoration-two" />
           </section>
+          <FadeContent effect="fade" blur={2} duration={0.7}>
+            <section className="immersive-dashboard-gallery">
+              <div className="immersive-dashboard-gallery-copy"><span>IMPACT IN MOTION / 01—04</span><b>Explore your footprint from every angle.</b><small>Drag or use the arrows to move through the experience.</small></div>
+              <DepthCarousel items={[{ image: "/visuals/activity-impact.svg", alt: "Activity impact" }, { image: "/visuals/category-insight.svg", alt: "Category insights" }, { image: "/visuals/goal-trajectory.svg", alt: "Goal trajectory" }, { image: "/visuals/community-network.svg", alt: "Community progress" }]} cardWidth={205} cardHeight={250} radius={13} tint="#070b0a" depth={145} spread={77} tilt={20} perspective={1250} visibleCards={2} falloff={0.24} blur={1.5} duration={650} showControls showIndicators loop className="immersive-dashboard-carousel" />
+            </section>
+          </FadeContent>
           <div className="metric-grid">
             <Metric label="Activities tracked" value={activities.length} unit="entries" detail="Across your activity log" tone="blue" />
             <Metric label="Active tracking days" value={trackedDays} unit="days" detail="Distinct days with an entry" tone="green" />
@@ -859,6 +869,7 @@ function App() {
           </form>
           <section className="surface account-card"><span className="kicker">ACCOUNT DETAILS</span><h2>Account information</h2><div className="account-grid"><div><span>Username</span><b>{profile?.username || username}</b></div><div><span>Email</span><b>{profile?.email || "—"}</b></div><div><span>Account role</span><b>{profile?.role || "USER"}</b></div><div><span>Member since</span><b>{dateLabel(profile?.createdAt)}</b></div></div></section>
         </>}
+        </FadeContent>
         <footer className="page-footer"><b>CARBONTRACK</b><span>Measure what matters. Improve what you can.</span><button onClick={signOut}>Sign out ↗</button></footer>
       </div>
     </main>
