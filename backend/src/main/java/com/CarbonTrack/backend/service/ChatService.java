@@ -77,7 +77,7 @@ public class ChatService {
 
         if (containsAny(question, "help", "what can you do", "how do i use")) {
             return response(
-                    "Ask me about your last 30 days of recorded emissions, a specific category (transport, electricity, food or shopping), your active reduction goal, or practical reduction ideas. I use your CarbonTrack records and built-in guidance; I do not generate answers using an external AI model.",
+                    "Ask about your last 30 days of recorded emissions, a category, your active reduction goal, or practical ways to reduce your impact. Guided mode uses your CarbonTrack records and built-in guidance. When Gemini AI is configured, you can enable AI mode in this chat for more flexible conversations.",
                     "Show my footprint summary",
                     "Which category is highest?",
                     "Show my goal progress");
