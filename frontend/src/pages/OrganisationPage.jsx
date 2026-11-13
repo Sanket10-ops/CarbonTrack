@@ -177,10 +177,11 @@ export default function OrganisationPage({ profile, onProfileRefresh }) {
               : <div className="m3-empty"><b>No monthly data</b><p>Monthly totals will appear when opted-in users log activities.</p></div>}
           </section>
           <section className="surface m3-panel">
-            <div className="surface-title"><div><span className="kicker">CONSENTED EMPLOYEE VIEW</span><h2>Employee comparison</h2></div></div>
+            <div className="surface-title"><div><span className="kicker">CONSENTED EMPLOYEE VIEW</span><h2>Organisation leaderboard</h2></div><span className="tag">Lowest footprint first</span></div>
+            <p className="m3-footnote">Employees are ranked by their total recorded CO₂e for this reporting period. Only members who enabled organisation reporting are included.</p>
             {dashboard.employees?.length
-              ? <div className="table-scroll"><table className="m3-table"><thead><tr><th>Employee</th><th>Total CO₂e</th><th>Transport</th><th>Electricity</th><th>Food</th><th>Shopping</th></tr></thead>
-                <tbody>{dashboard.employees.map((employee) => <tr key={employee.username}><td><b>{employee.username}</b></td><td><strong>{kg(employee.totalCo2eKg)} kg</strong></td><td>{kg(employee.byCategory?.transport)} kg</td><td>{kg(employee.byCategory?.electricity)} kg</td><td>{kg(employee.byCategory?.food)} kg</td><td>{kg(employee.byCategory?.shopping)} kg</td></tr>)}</tbody></table></div>
+              ? <div className="table-scroll"><table className="m3-table"><thead><tr><th>Rank</th><th>Employee</th><th>Total CO₂e</th><th>Transport</th><th>Electricity</th><th>Food</th><th>Shopping</th></tr></thead>
+                <tbody>{dashboard.employees.map((employee, index) => <tr key={employee.username}><td><b>#{index + 1}</b></td><td><b>{employee.username}</b></td><td><strong>{kg(employee.totalCo2eKg)} kg</strong></td><td>{kg(employee.byCategory?.transport)} kg</td><td>{kg(employee.byCategory?.electricity)} kg</td><td>{kg(employee.byCategory?.food)} kg</td><td>{kg(employee.byCategory?.shopping)} kg</td></tr>)}</tbody></table></div>
               : <div className="m3-empty"><b>No members have opted in</b><p>Ask employees to enable organisation reporting in their own Preferences. No employee data is visible before consent.</p></div>}
           </section>
         </>}
