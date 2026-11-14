@@ -29,7 +29,10 @@ const NAV = [
   ["leaderboard", "Leaderboard", "♜", "INSIGHTS"],
   ["organisation", "Organisation", "⌂", "ORGANISATION"],
   ["preferences", "Preferences", "⚙", "ACCOUNT"],
-  ["profile", "My Profile", "◉", "ACCOUNT"]
+  ["profile", "My Profile", "◉", "ACCOUNT"],
+  ["budget", "Carbon Budget", "◎", "WORKSPACE"],
+  ["calendar", "Eco Calendar", "▦", "WORKSPACE"],
+  ["report", "Carbon Report", "↓", "INSIGHTS"],
 ];
 
 const TYPES = {
@@ -103,8 +106,28 @@ const currentUserFromToken = (token) => {
   catch { return ""; }
 };
 
-function Mark() {
-  return <div className="brand"><span className="brand-mark">c</span><span className="brand-name">carbon<span>track</span><small>LIVE LIGHTER</small></span></div>;
+function Mark({ onClick }) {
+  return (
+    <div
+      className="brand"
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      style={{ cursor: "pointer" }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick?.();
+        }
+      }}
+    >
+      <span className="brand-mark">c</span>
+      <span className="brand-name">
+        carbon<span>track</span>
+        <small>LIVE LIGHTER</small>
+      </span>
+    </div>
+  );
 }
 
 function Button({ children, kind = "primary", ...props }) {
@@ -379,7 +402,8 @@ function App() {
   const [showActivityForm, setShowActivityForm] = useState(false);
   const [activitySearch, setActivitySearch] = useState("");
   const [activityCategory, setActivityCategory] = useState("all");
-
+  const [featureMonth, setFeatureMonth] = useState(today().slice(0, 7));
+  const [loginStreak, setLoginStreak] = useState(0);
   // Theme management
   const [theme, setTheme] = useState(() => {
     try { return localStorage.getItem("ct-theme") || "dark"; } catch { return "dark"; }
@@ -467,15 +491,56 @@ function App() {
     return () => { alive = false; };
   }, [authenticated, period, startDate, endDate]);
 
-  async function login(user, password) {
-    setAuthBusy(true); setAuthError("");
-    try {
-      const result = await api.login(user.trim(), password);
-      if (!result?.accessToken) throw new Error("The API response did not include an access token.");
-      setToken(result.accessToken); setUsername(user.trim()); setAuthenticated(true); setPage("overview"); setNotice("You are signed in.");
-    } catch (e) { setAuthError(e.message); }
-    finally { setAuthBusy(false); }
+ async function login(user, password) {
+  setAuthBusy(true);
+  setAuthError("");
+
+  try {
+    const result = await api.login(user.trim(), password);
+
+    if (!result?.accessToken) {
+      throw new Error("The API response did not include an access token.");
+    }
+
+    // Calculate login streak
+    const todayDate = today();
+    const lastLogin = localStorage.getItem("carbontrack-last-login");
+    const savedStreak = Number(
+      localStorage.getItem("carbontrack-login-streak") || 0
+    );
+
+    let newStreak = 1;
+
+    if (lastLogin === todayDate) {
+      newStreak = Math.max(1, savedStreak);
+    } else if (lastLogin) {
+      const previousDate = new Date(lastLogin + "T00:00:00");
+      const currentDate = new Date(todayDate + "T00:00:00");
+
+      const difference = Math.round(
+        (currentDate - previousDate) / (1000 * 60 * 60 * 24)
+      );
+
+      newStreak = difference === 1 ? savedStreak + 1 : 1;
+    }
+
+    localStorage.setItem("carbontrack-last-login", todayDate);
+    localStorage.setItem("carbontrack-login-streak", String(newStreak));
+
+    setLoginStreak(newStreak);
+
+    setToken(result.accessToken);
+    setUsername(user.trim());
+    setAuthenticated(true);
+    setPage("overview");
+    setNotice("You are signed in.");
+
+  } catch (e) {
+    setAuthError(e.message);
+  } finally {
+    setAuthBusy(false);
   }
+}
 
   async function register(user, email, password) {
     setAuthBusy(true); setAuthError("");
@@ -711,6 +776,81 @@ function App() {
     setNotice("CSV export prepared for " + filteredActivities.length + " activities.");
   }
 
+  function downloadMonthlyReport() {
+  const [year, month] = featureMonth.split("-").map(Number);
+
+  const monthActivities = activities.filter((a) => {
+    const date = String(a.logDate || "").slice(0, 10);
+    return date.startsWith(featureMonth);
+  });
+
+  const total = sumActivityEmissions(monthActivities);
+
+  const categories = Object.keys(CATEGORIES).map((category) => {
+    const rows = monthActivities.filter(
+      (a) => a.category === category
+    );
+
+    return [
+      words(category),
+      rows.length,
+      sumActivityEmissions(rows).toFixed(3)
+    ];
+  });
+
+  const rows = [
+    ["CARBONTRACK MONTHLY SUSTAINABILITY REPORT"],
+    [
+      "Month",
+      new Date(year, month - 1, 1).toLocaleDateString(
+        undefined,
+        { month: "long", year: "numeric" }
+      )
+    ],
+    ["Total emissions (kg CO2e)", total.toFixed(3)],
+    ["Activities recorded", monthActivities.length],
+    [],
+    ["Category", "Activities", "Emissions (kg CO2e)"],
+    ...categories,
+    [],
+    [
+      "Date",
+      "Category",
+      "Activity",
+      "Quantity",
+      "Unit",
+      "Emissions (kg CO2e)"
+    ],
+    ...monthActivities.map((a) => [
+      a.logDate,
+      words(a.category),
+      words(a.activityType),
+      a.quantity,
+      a.unit,
+      a.co2eKg
+    ])
+  ];
+
+  const csv = rows.map((row) =>
+    row.map((value) =>
+      '"' + String(value ?? "").replaceAll('"', '""') + '"'
+    ).join(",")
+  ).join("\r\n");
+
+  const blob = new Blob(["\uFEFF", csv], {
+    type: "text/csv;charset=utf-8"
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = `carbontrack-report-${featureMonth}.csv`;
+  link.click();
+
+  URL.revokeObjectURL(url);
+}
+
   const pageLabel = NAV.find((n) => n[0] === page)?.[1] || "Overview";
   const greeting = useMemo(() => new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 17 ? "Good afternoon" : "Good evening", []);
   const firstName = (username || "there").split(/[._-]/)[0];
@@ -720,7 +860,9 @@ function App() {
   return <div className="app-shell">
     {mobileNav && <button className="mobile-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation" />}
     <aside className={"sidebar " + (mobileNav ? "sidebar-open" : "")}>
-      <div className="sidebar-brand"><Mark /><button className="mobile-close" onClick={() => setMobileNav(false)}>×</button></div>
+
+      <div className="sidebar-brand"><Mark onClick={() => go("overview")} /> <button className="mobile-close"
+    onClick={() => setMobileNav(false)}>×</button></div>
       <div className="workspace-switch"><span className="workspace-mark">C</span><div><b>Personal space</b><small>Individual account</small></div><span>⌄</span></div>
       {["WORKSPACE", "INSIGHTS", "ORGANISATION", "ACCOUNT"].map((group) => <div className="nav-group" key={group}><span className="nav-kicker">{group}</span>{NAV.filter((n) => n[3] === group).map((n) => <button key={n[0]} className={"nav-item " + (page === n[0] ? "active" : "")} onClick={() => go(n[0])}><span className="nav-icon">{n[2]}</span>{n[1]}{n[0] === "goals" && activeGoals > 0 && <small>{activeGoals}</small>}</button>)}</div>)}
       <div className="sidebar-bottom"><div className="sidebar-note"><span>✳</span><b>Progress over perfection.</b><p>Small, consistent changes make a measurable difference.</p></div><div className="user-row"><button
@@ -758,7 +900,31 @@ function App() {
                 </div>
               </div>
               <div className="hero-stat">
-                <span className="hero-stat-label">EMISSIONS IN SELECTED RANGE</span>
+                <div className="hero-stat-heading">
+  <span className="hero-stat-label">EMISSIONS IN SELECTED RANGE</span>
+
+  <div className="login-streak" title="Consecutive login days">
+    <svg viewBox="0 0 24 24" className="streak-flame">
+      <defs>
+        <linearGradient id="greenFlame" x1="0%" y1="100%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#36B36A" />
+          <stop offset="55%" stopColor="#8BEA68" />
+          <stop offset="100%" stopColor="#D1FF85" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M12 2C13.5 6 18.5 8 18.5 14A6.5 6.5 0 0 1 5.5 14C5.5 10.5 7.5 8 9 6C9 9 10 10 11 11C12 8 12 5 12 2Z"
+        fill="url(#greenFlame)"
+      />
+      <path
+        d="M12 12C13 14 15 15 15 17A3 3 0 0 1 9 17C9 15 10.5 13.5 12 12Z"
+        fill="#D7FFAE"
+      />
+    </svg>
+
+    <strong>{loginStreak}</strong>
+  </div>
+</div>
                 <strong>{kg(analytics?.totalEmissionsKg, 1)} <small>kg CO₂e</small></strong>
                 <span className="hero-stat-range">{dateLabel(startDate, { day: "numeric", month: "short" })} – {dateLabel(endDate, { day: "numeric", month: "short" })}</span>
                 <div className="hero-stat-divider" />
@@ -816,7 +982,7 @@ function App() {
                   <label>To <input type="date" value={endDate} min={startDate} max={today()} onChange={(e) => setEndDate(e.target.value)} /></label>
                   <button onClick={refreshData} title="Refresh data" aria-label="Refresh data">↻</button>
                 </div>
-                <TrendChart points={analytics?.trend || []} />
+                <TrendChart points={analytics?.timeline || []} />
               </section>
               <section className="surface category-card"><div className="surface-title"><div><span className="kicker">WHERE IT COMES FROM</span><h2>Emissions by category</h2></div></div><CategoryChart rows={analytics?.categoryTotals || []} /></section>
             </div>
@@ -890,6 +1056,299 @@ function App() {
             {loading && <div className="loading"><span /> Refreshing your data…</div>}
           </>}
 
+               {page === "budget" && (() => {
+        const monthlyActivities = activities.filter((a) =>
+          String(a.logDate || "").slice(0, 7) === featureMonth
+        );
+
+        const used = sumActivityEmissions(monthlyActivities);
+        const target = Number(profileForm.monthlyTargetKg || 0);
+        const remaining = target - used;
+        const percentage = target > 0 ? (used / target) * 100 : 0;
+
+        const categoryNames = [
+          ...new Set(monthlyActivities.map((a) => a.category))
+        ];
+
+        return (
+          <>
+            <PageHeading
+              kicker="YOUR MONTHLY LIMIT"
+              title="Carbon Budget"
+              subtitle="Track your monthly carbon emissions against your target."
+              action={
+                <Button kind="secondary" onClick={() => go("preferences")}>
+                  Edit budget →
+                </Button>
+              }
+            />
+
+            <section className="surface feature-panel">
+
+              <span className="kicker">SELECT MONTH</span>
+
+              <input
+                type="month"
+                value={featureMonth}
+                onChange={(e) => setFeatureMonth(e.target.value)}
+              />
+
+              {target > 0 ? (
+                <>
+                  <div className="budget-numbers">
+
+                    <div>
+                      <span>Emissions Used</span>
+                      <strong>{kg(used)} kg</strong>
+                    </div>
+
+                    <div>
+                      <span>Monthly Limit</span>
+                      <strong>{kg(target)} kg</strong>
+                    </div>
+
+                    <div>
+                      <span>{remaining >= 0 ? "Remaining" : "Over Budget"}</span>
+                      <strong>{kg(Math.abs(remaining))} kg</strong>
+                    </div>
+
+                  </div>
+
+                  <div className="budget-progress">
+
+                    <div className="budget-progress-track">
+                      <i
+                        className={percentage > 100 ? "over" : ""}
+                        style={{
+                          width: Math.min(100, percentage) + "%"
+                        }}
+                      />
+                    </div>
+
+                    <b>{percentage.toFixed(1)}% of your budget used</b>
+
+                  </div>
+
+                  <p className="budget-message">
+                    {remaining >= 0
+                      ? "You are within your monthly carbon budget. Keep it up!"
+                      : "You have exceeded your monthly carbon budget. Try reducing your emissions."}
+                  </p>
+                </>
+              ) : (
+                <div className="report-insight">
+                  <h3>No monthly budget set</h3>
+                  <p>
+                    Set your monthly CO₂e target in Preferences to start
+                    tracking your carbon budget.
+                  </p>
+                  <Button onClick={() => go("preferences")}>
+                    Set Monthly Budget →
+                  </Button>
+                </div>
+              )}
+
+              <div className="budget-category-list">
+
+                <h3>Monthly Activity Breakdown</h3>
+
+                {categoryNames.length > 0 ? (
+                  categoryNames.map((category) => {
+                    const categoryActivities = monthlyActivities.filter(
+                      (a) => a.category === category
+                    );
+
+                    const categoryTotal =
+                      sumActivityEmissions(categoryActivities);
+
+                    return (
+                      <div className="budget-category-row" key={category}>
+                        <span>{words(category)}</span>
+                        <b>{kg(categoryTotal)} kg CO₂e</b>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p>No activities recorded for this month.</p>
+                )}
+
+              </div>
+
+              <p>
+                Total activities recorded: <b>{monthlyActivities.length}</b>
+              </p>
+
+            </section>
+          </>
+        );
+      })()}
+
+            {page === "report" && (() => {
+        const monthlyActivities = activities.filter((a) =>
+          String(a.logDate || "").slice(0, 7) === featureMonth
+        );
+
+        const total = sumActivityEmissions(monthlyActivities);
+
+        const categoryTotals = Object.entries(CATEGORIES).map(([key, category]) => ({
+          key,
+          label: category.label,
+          symbol: category.symbol,
+          total: sumActivityEmissions(
+            monthlyActivities.filter((a) => a.category === key)
+          )
+        }));
+
+        const highest = [...categoryTotals].sort(
+          (a, b) => b.total - a.total
+        )[0];
+
+        return (
+          <>
+            <PageHeading
+              kicker="YOUR SUSTAINABILITY SUMMARY"
+              title="Personal Carbon Report"
+              subtitle="Review your monthly carbon footprint and download your sustainability report."
+            />
+
+            <section className="surface feature-panel">
+              <span className="kicker">REPORTING PERIOD</span>
+
+              <input
+                type="month"
+                value={featureMonth}
+                onChange={(e) => setFeatureMonth(e.target.value)}
+              />
+
+              <div className="report-total">
+                <span>Total monthly emissions</span>
+                <strong>{kg(total)} <small>kg CO₂e</small></strong>
+                <span>{monthlyActivities.length} activities recorded</span>
+              </div>
+
+              <div className="budget-category-list">
+                <h3>Category breakdown</h3>
+
+                {categoryTotals.map((category) => (
+                  <div className="budget-category-row" key={category.key}>
+                    <span>{category.symbol} {category.label}</span>
+                    <b>{kg(category.total)} kg CO₂e</b>
+                  </div>
+                ))}
+              </div>
+
+              <div className="report-insight">
+                <span className="kicker">MONTHLY INSIGHT</span>
+
+                {monthlyActivities.length > 0 ? (
+                  <p>
+                    Your highest-emission category is <b>{highest.label}</b>,
+                    contributing {kg(highest.total)} kg CO₂e this month.
+                    Consider focusing your reduction efforts there.
+                  </p>
+                ) : (
+                  <p>
+                    No activities were recorded during this month.
+                    Start logging activities to build your report.
+                  </p>
+                )}
+              </div>
+
+              <Button
+                onClick={downloadMonthlyReport}
+                disabled={!monthlyActivities.length}
+              >
+                ↓ Download monthly report (CSV)
+              </Button>
+            </section>
+          </>
+        );
+      })()}
+
+         {page === "calendar" && (() => {
+        const year = Number(featureMonth.slice(0, 4));
+        const month = Number(featureMonth.slice(5, 7));
+
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const firstDay = new Date(year, month - 1, 1).getDay();
+
+        const monthlyActivities = activities.filter((a) =>
+          String(a.logDate || "").slice(0, 7) === featureMonth
+        );
+
+        const dailyTotals = {};
+
+        monthlyActivities.forEach((a) => {
+          const day = Number(String(a.logDate).slice(8, 10));
+          dailyTotals[day] = (dailyTotals[day] || 0) + Number(a.co2eKg || 0);
+        });
+
+        const dailyValues = Object.values(dailyTotals);
+        const average = dailyValues.length
+          ? dailyValues.reduce((sum, value) => sum + value, 0) / dailyValues.length
+          : 0;
+
+        return (
+          <>
+            <PageHeading
+              kicker="YOUR DAILY FOOTPRINT"
+              title="Eco Calendar"
+              subtitle="See your daily emissions and identify your greener days."
+            />
+
+            <section className="surface feature-panel">
+              <span className="kicker">SELECT MONTH</span>
+
+              <input
+                type="month"
+                value={featureMonth}
+                onChange={(e) => setFeatureMonth(e.target.value)}
+              />
+
+              <div className="eco-legend">
+                <span><i className="eco-green" /> Greener day</span>
+                <span><i className="eco-red" /> Higher emissions</span>
+                <span><i className="eco-none" /> No activity</span>
+              </div>
+
+              <div className="eco-calendar-grid">
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                  <div className="eco-weekday" key={day}>{day}</div>
+                ))}
+
+                {Array.from({ length: firstDay }).map((_, index) => (
+                  <div className="eco-empty-day" key={"empty-" + index} />
+                ))}
+
+                {Array.from({ length: daysInMonth }, (_, index) => {
+                  const day = index + 1;
+                  const hasActivity = dailyTotals[day] !== undefined;
+                  const emission = dailyTotals[day] || 0;
+
+                  const dayClass = !hasActivity
+                    ? "eco-no-data"
+                    : emission <= average
+                      ? "eco-green"
+                      : "eco-red";
+
+                  return (
+                    <div className={"eco-day " + dayClass} key={day}>
+                      <b>{day}</b>
+                      <small>
+                        {hasActivity ? kg(emission) + " kg" : "—"}
+                      </small>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <p>
+                Average emissions on active days: <b>{kg(average)} kg CO₂e</b>
+              </p>
+            </section>
+          </>
+        );
+      })()}
 
           {page === "profile" && <>
             <PageHeading

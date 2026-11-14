@@ -371,3 +371,243 @@ body:has(.app-shell){background:#070b0a!important;color:#e8f0e7!important;color-
   }
 }
 
+/* Carbon Budget, Eco Calendar and Carbon Report */
+
+.feature-panel {
+  padding: 26px;
+  margin-bottom: 22px;
+}
+
+.feature-panel > input[type="month"] {
+  display: block;
+  margin: 12px 0 24px;
+  max-width: 230px;
+}
+
+.budget-numbers {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 26px 0;
+}
+
+.budget-numbers > div {
+  padding: 18px;
+  border-radius: 13px;
+  background: var(--surface-soft, rgba(128, 150, 135, 0.09));
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.budget-numbers span,
+.budget-category-row span {
+  color: var(--muted, #87958b);
+  font-size: 13px;
+}
+
+.budget-numbers strong {
+  font-size: 23px;
+}
+
+.budget-progress {
+  display: grid;
+  gap: 12px;
+  margin-top: 25px;
+}
+
+.budget-progress-track {
+  height: 13px;
+  border-radius: 20px;
+  overflow: hidden;
+  background: rgba(128, 150, 135, 0.2);
+}
+
+.budget-progress-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #4d8a70;
+}
+
+.budget-progress-track i.over {
+  background: #d17d5e;
+}
+
+.budget-message {
+  margin-top: 18px;
+  color: var(--muted, #87958b);
+}
+
+.budget-category-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.budget-category-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--border, rgba(128, 150, 135, 0.2));
+}
+
+.eco-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin: 22px 0;
+  font-size: 12px;
+}
+
+.eco-legend span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.eco-legend i {
+  width: 11px;
+  height: 11px;
+  border-radius: 4px;
+}
+
+.eco-low,
+.eco-green {
+  background: rgba(10, 226, 133, 0.17);
+}
+
+.eco-high,
+.eco-red {
+  background: rgba(228, 72, 15, 0.17);
+}
+
+.eco-none,
+.eco-no-data {
+  background: rgba(128, 150, 135, 0.17);
+}
+
+.eco-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 9px;
+  margin: 20px 0;
+}
+
+.eco-weekday {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted, #87958b);
+  padding: 8px 0;
+}
+
+.eco-day {
+  min-height: 76px;
+  border-radius: 11px;
+  padding: 9px 5px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.eco-day small {
+  font-size: 10px;
+}
+
+.eco-green {
+  color: #2ad086;
+}
+
+.eco-red {
+  color: #d17d5e;
+}
+
+.eco-no-data {
+  color: var(--muted, #87958b);
+}
+
+.eco-empty-day {
+  min-height: 1px;
+}
+
+.report-total {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 26px 0;
+  margin: 15px 0;
+  border-bottom: 1px solid var(--border, rgba(128, 150, 135, 0.2));
+}
+
+.report-total > span {
+  color: var(--muted, #87958b);
+  font-size: 13px;
+}
+
+.report-total strong {
+  font-size: 38px;
+}
+
+.report-total strong small {
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.report-insight {
+  padding: 18px;
+  margin: 24px 0;
+  border-radius: 12px;
+  background: var(--surface-soft, rgba(79, 223, 124, 0.09));
+}
+
+.report-insight p {
+  margin-top: 10px;
+  line-height: 1.7;
+}
+
+@media (max-width: 650px) {
+  .budget-numbers {
+    grid-template-columns: 1fr;
+  }
+
+  .eco-calendar-grid {
+    gap: 4px;
+  }
+
+  .eco-day {
+    min-height: 60px;
+    font-size: 12px;
+  }
+
+  .eco-day small {
+    font-size: 9px;
+  }
+
+  .feature-panel {
+    padding: 17px;
+  }
+}
+
+.login-streak {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: rgba(91, 190, 105, 0.09);
+}
+
+.streak-flame {
+  width: 120px;
+  height: 120px;
+  filter: drop-shadow(0 0 6px rgba(112, 239, 111, 0.7));
+}
+
+.login-streak strong {
+  color: #8BEA68;
+  font-size: 100px;
+  font-weight: 700;
+}
