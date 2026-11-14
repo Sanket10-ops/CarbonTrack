@@ -12,12 +12,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@blobatar/react": "^2.7.0",
+    "blobatar": "^2.7.0",
+    "gsap": "3.15.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "recharts": "3.10.1",
     "react-is": "19.3.1",
-    "three": "0.187.0",
-    "gsap": "3.15.1"
+    "recharts": "3.10.1",
+    "three": "0.187.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "6.1.2",

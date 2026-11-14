@@ -1,5 +1,6 @@
 import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { api, clearToken, getToken, setToken } from "./api.js";
+import UserAvatar from "./components/UserAvatar.jsx";
 import LeaderboardPage from "./pages/LeaderboardPage.jsx";
 import OrganisationPage from "./pages/OrganisationPage.jsx";
 import ChatAssistant from "./ChatAssistant.jsx";
@@ -13,6 +14,7 @@ import "./reactbits/ScrollStack.css";
 import "./milestone3.css";
 import "./visual-refresh.css";
 import "./immersive-ui.css";
+import "./theme.css";
 import { CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 const LandingExperience = lazy(() => import("./LandingExperience.jsx"));
@@ -26,49 +28,61 @@ const NAV = [
   ["community", "Community", "◉", "INSIGHTS"],
   ["leaderboard", "Leaderboard", "♜", "INSIGHTS"],
   ["organisation", "Organisation", "⌂", "ORGANISATION"],
-  ["preferences", "Preferences", "⚙", "ACCOUNT"]
+  ["preferences", "Preferences", "⚙", "ACCOUNT"],
+  ["profile", "My Profile", "◉", "ACCOUNT"]
 ];
+
 const TYPES = {
   transport: [["car_travel", "Car travel", "km"], ["motorcycle_travel", "Motorcycle", "km"], ["bus_travel", "Bus travel", "passenger-km"], ["train_travel", "Train travel", "passenger-km"], ["flight_travel", "Flight travel", "passenger-km"]],
   electricity: [["grid_electricity", "Grid electricity", "kWh"]],
   food: [["beef", "Beef", "kg"], ["chicken", "Chicken", "kg"], ["plant_based_food", "Plant-based food", "kg"]],
   shopping: [["clothing", "Clothing", "kg"], ["electronics", "Electronics", "item"], ["paper", "Paper", "kg"], ["plastic", "Plastic", "kg"]]
 };
+
 const CATEGORIES = {
   transport: { label: "Transport", color: "#4d8a70", symbol: "↗" },
   electricity: { label: "Electricity", color: "#c99e42", symbol: "ϟ" },
   food: { label: "Food", color: "#d17d5e", symbol: "⌂" },
   shopping: { label: "Shopping", color: "#777eb0", symbol: "◇" }
 };
+
 const today = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const daysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const kg = (v, digits = 2) => Number(v ?? 0).toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+
 const dateLabel = (v, opts = { day: "numeric", month: "short", year: "numeric" }) => {
   if (!v) return "—";
   const d = new Date(v.length === 10 ? v + "T12:00:00" : v);
   return Number.isNaN(d.getTime()) ? v : d.toLocaleDateString(undefined, opts);
 };
+
 const words = (v = "") => v.replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
 const isoDate = (date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return year + "-" + month + "-" + day;
 };
+
 const dateFromIso = (value) => {
   const parts = String(value || "").slice(0, 10).split("-").map(Number);
   return new Date(parts[0], parts[1] - 1, parts[2]);
 };
+
 const shiftIsoDate = (value, amount) => { const date = dateFromIso(value); date.setDate(date.getDate() + amount); return isoDate(date); };
 const mondayStart = (value) => { const date = dateFromIso(value); date.setDate(date.getDate() - ((date.getDay() + 6) % 7)); return isoDate(date); };
+
 const dateSpanDays = (from, to) => {
   const utc = (value) => { const p = String(value || "").slice(0, 10).split("-").map(Number); return Date.UTC(p[0], p[1] - 1, p[2]); };
   return Math.max(0, Math.round((utc(to) - utc(from)) / 86400000));
 };
+
 const sumActivityEmissions = (rows) => rows.reduce((total, row) => {
   const value = Number(row.co2eKg ?? 0);
   return total + (Number.isFinite(value) ? value : 0);
 }, 0);
+
 function downloadActivitiesCsv(rows) {
   const headers = ["ID", "Date", "Category", "Activity", "Quantity", "Unit", "Emissions (kg CO2e)"];
   const values = rows.map((a) => [a.id, a.logDate, words(a.category), words(a.activityType), a.quantity, a.unit, a.co2eKg]);
@@ -83,45 +97,103 @@ function downloadActivitiesCsv(rows) {
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
 const currentUserFromToken = (token) => {
   try { return JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).sub || ""; }
   catch { return ""; }
 };
 
-function Mark() { return <div className="brand"><span className="brand-mark">c</span><span className="brand-name">carbon<span>track</span><small>LIVE LIGHTER</small></span></div>; }
-function Button({ children, kind = "primary", ...props }) { return <button className={"btn btn-" + kind} {...props}>{children}</button>; }
-function Field({ label, children, hint }) { return <label className="field"><span>{label}</span>{children}{hint && <small>{hint}</small>}</label>; }
-function Empty({ title, text, action }) { return <div className="empty"><span className="empty-leaf">c</span><strong>{title}</strong><p>{text}</p>{action}</div>; }
-function Tag({ children }) { return <span className="tag">{children}</span>; }
+function Mark() {
+  return <div className="brand"><span className="brand-mark">c</span><span className="brand-name">carbon<span>track</span><small>LIVE LIGHTER</small></span></div>;
+}
+
+function Button({ children, kind = "primary", ...props }) {
+  return <button className={"btn btn-" + kind} {...props}>{children}</button>;
+}
+
+function Field({ label, children, hint }) {
+  return <label className="field"><span>{label}</span>{children}{hint && <small>{hint}</small>}</label>;
+}
+
+function Empty({ title, text, action }) {
+  return <div className="empty"><span className="empty-leaf">c</span><strong>{title}</strong><p>{text}</p>{action}</div>;
+}
+
+function Tag({ children }) {
+  return <span className="tag">{children}</span>;
+}
+
 function PageHeading({ kicker, title, subtitle, action }) {
   return <div className="page-heading"><div><span className="kicker">{kicker}</span><h1>{title}</h1><p>{subtitle}</p></div>{action}</div>;
 }
+
 function Auth({ onLogin, onRegister, busy, error }) {
   const [mode, setMode] = useState("login");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   async function submit(e) {
     e.preventDefault();
     if (mode === "login") await onLogin(username, password);
     else await onRegister(username, email, password);
   }
+
   return <div className="auth-shell">
-    <section className="auth-art"><Mark /><div className="auth-message"><span className="kicker">A SMALLER FOOTPRINT STARTS HERE</span><h1>Make better choices.<br /><i>Measure the change.</i></h1><p>Understand your everyday impact, set meaningful goals and build habits that last.</p><ul><li>Track the impact of daily decisions</li><li>Set goals and see progress over time</li><li>Keep your sustainability data in your hands</li></ul></div><small className="auth-foot">CARBONTRACK · PERSONAL SUSTAINABILITY</small></section>
-    <section className="auth-panel"><div className="auth-mobile-mark"><Mark /></div><div className="auth-card"><span className="kicker">WELCOME TO CARBONTRACK</span><h2>{mode === "login" ? "Good to see you." : "Create your account."}</h2><p>{mode === "login" ? "Sign in to continue your sustainability journey." : "Start recording your impact and set your first goal."}</p>
-      <div className="auth-switch"><button className={mode === "login" ? "selected" : ""} onClick={() => setMode("login")}>Sign in</button><button className={mode === "register" ? "selected" : ""} onClick={() => setMode("register")}>Create account</button></div>
-      <form onSubmit={submit} className="stack-form">
-        <Field label="Username"><input required minLength={3} autoComplete="username" placeholder="Your username" value={username} onChange={(e) => setUsername(e.target.value)} /></Field>
-        {mode === "register" && <Field label="Email address"><input required type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>}
-        <Field label="Password"><input required type="password" maxLength={72} minLength={mode === "register" ? 8 : undefined} autoComplete={mode === "login" ? "current-password" : "new-password"} placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} /></Field>
-        {error && <div className="alert alert-error">{error}</div>}
-        <Button type="submit" disabled={busy}>{busy ? "Please wait…" : mode === "login" ? "Sign in →" : "Create account →"}</Button>
-      </form><small className="auth-security">▣ Your account is protected with secure sign-in.</small>
-    </div><small className="auth-terms">By continuing, you agree to use CarbonTrack responsibly.</small></section>
+    <section className="auth-art">
+      <Mark />
+      <div className="auth-message">
+        <span className="kicker">A SMALLER FOOTPRINT STARTS HERE</span>
+        <h1>Make better choices.<br /><i>Measure the change.</i></h1>
+        <p>Understand your everyday impact, set meaningful goals and build habits that last.</p>
+        <ul>
+          <li>Track the impact of daily decisions</li>
+          <li>Set goals and see progress over time</li>
+          <li>Keep your sustainability data in your hands</li>
+        </ul>
+      </div>
+      <small className="auth-foot">CARBONTRACK · PERSONAL SUSTAINABILITY</small>
+    </section>
+
+    <section className="auth-panel">
+      <div className="auth-mobile-mark"><Mark /></div>
+      <div className="auth-card">
+        <span className="kicker">WELCOME TO CARBONTRACK</span>
+        <h2>{mode === "login" ? "Good to see you." : "Create your account."}</h2>
+        <p>{mode === "login" ? "Sign in to continue your sustainability journey." : "Start recording your impact and set your first goal."}</p>
+
+        <div className="auth-switch">
+          <button className={mode === "login" ? "selected" : ""} onClick={() => setMode("login")}>Sign in</button>
+          <button className={mode === "register" ? "selected" : ""} onClick={() => setMode("register")}>Create account</button>
+        </div>
+
+        <form onSubmit={submit} className="stack-form">
+          <Field label="Username">
+            <input required minLength={3} autoComplete="username" placeholder="Your username" value={username} onChange={(e) => setUsername(e.target.value)} />
+          </Field>
+          {mode === "register" && <Field label="Email address">
+            <input required type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </Field>}
+          <Field label="Password">
+            <input required type="password" maxLength={72} minLength={mode === "register" ? 8 : undefined} autoComplete={mode === "login" ? "current-password" : "new-password"} placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          </Field>
+          {error && <div className="alert alert-error">{error}</div>}
+          <Button type="submit" disabled={busy}>{busy ? "Please wait…" : mode === "login" ? "Sign in →" : "Create account →"}</Button>
+        </form>
+        <small className="auth-security">▣ Your account is protected with secure sign-in.</small>
+      </div>
+      <small className="auth-terms">By continuing, you agree to use CarbonTrack responsibly.</small>
+    </section>
   </div>;
 }
+
 function Metric({ label, value, unit, detail, tone }) {
-  return <article className="metric"><span className={"metric-mark " + tone}>{tone === "green" ? "↗" : tone === "amber" ? "ϟ" : tone === "blue" ? "⌁" : "◇"}</span><span className="metric-label">{label}</span><strong>{value}<small>{unit}</small></strong><span className="metric-detail">{detail}</span></article>;
+  return <article className="metric">
+    <span className={"metric-mark " + tone}>{tone === "green" ? "↗" : tone === "amber" ? "ϟ" : tone === "blue" ? "⌁" : "◇"}</span>
+    <span className="metric-label">{label}</span>
+    <strong>{value}<small>{unit}</small></strong>
+    <span className="metric-detail">{detail}</span>
+  </article>;
 }
 function ActivityTable({ rows = [], compact = false, onAll }) {
   if (!rows.length) return <Empty title="No activities recorded" text="Your activity history will appear here after you log your first entry." />;
@@ -130,6 +202,7 @@ function ActivityTable({ rows = [], compact = false, onAll }) {
     return <tr key={a.id}><td><div className="activity-cell"><span style={{ color: cat.color, background: cat.color + "18" }}>{cat.symbol}</span><div><b>{words(a.activityType)}</b><small>Entry #{a.id}</small></div></div></td><td><span className="category-dot" style={{ "--dot": cat.color }}>{cat.label}</span></td><td>{dateLabel(a.logDate)}</td><td>{kg(a.quantity)} <small>{a.unit}</small></td><td><b className="emissions-number">{kg(a.co2eKg, 3)} kg</b></td></tr>;
   })}</tbody></table>{compact && onAll && <button className="link-btn table-link" onClick={onAll}>View all activities →</button>}</div>;
 }
+
 function TrendChart({ points = [] }) {
   const list = points.slice(-12);
   if (!list.length) return <div className="chart-empty">No recorded emissions in this date range.<small>Log an activity to start building your trend.</small></div>;
@@ -144,6 +217,7 @@ function TrendChart({ points = [] }) {
     {coords.map((p) => <g key={p.p.periodStart}><circle className="chart-dot" cx={p.x} cy={p.y} r="4" /><text className="chart-date" x={p.x} y={H - 7} textAnchor="middle">{dateLabel(p.p.periodStart, { day: "numeric", month: "short" })}</text></g>)}
   </svg>;
 }
+
 function CategoryChart({ rows = [] }) {
   const colors = ["#4d8a70", "#c99e42", "#d17d5e", "#777eb0"];
   const list = rows
@@ -205,7 +279,6 @@ function WeeklyComparisonChart({ activities = [] }) {
     </ResponsiveContainer>
   </div>;
 }
-
 function GoalProjectionCard({ projection, goal }) {
   if (!projection) {
     return <section className="surface projection-card">
@@ -306,6 +379,19 @@ function App() {
   const [showActivityForm, setShowActivityForm] = useState(false);
   const [activitySearch, setActivitySearch] = useState("");
   const [activityCategory, setActivityCategory] = useState("all");
+
+  // Theme management
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem("ct-theme") || "dark"; } catch { return "dark"; }
+  });
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    try { localStorage.setItem("ct-theme", theme); } catch { }
+  }, [theme]);
+  function toggleTheme() {
+    setTheme(t => t === "dark" ? "light" : "dark");
+  }
+
   const [mobileNav, setMobileNav] = useState(false);
   const [activityForm, setActivityForm] = useState({ category: "transport", activityType: "car_travel", quantity: "", logDate: today(), energySource: "grid", mealType: "lunch", servings: "", productCategory: "clothing", spendAmount: "", spendCurrency: "INR", flightDistanceKm: "" });
   const [goalForm, setGoalForm] = useState({ targetReductionPct: "20", periodDays: "30", startDate: today() });
@@ -372,6 +458,7 @@ function App() {
     }
     setWarnings(failed);
   }
+
   useEffect(() => {
     if (!authenticated) return undefined;
     let alive = true;
@@ -389,15 +476,18 @@ function App() {
     } catch (e) { setAuthError(e.message); }
     finally { setAuthBusy(false); }
   }
+
   async function register(user, email, password) {
     setAuthBusy(true); setAuthError("");
     try { await api.register(user.trim(), email.trim(), password); await login(user, password); }
     catch (e) { setAuthError(e.message); }
     finally { setAuthBusy(false); }
   }
+
   function signOut() {
     clearToken(); setAuthenticated(false); setUsername(""); setAnalytics(null); setActivities([]); setGoals([]); setRecommendations([]); setBadges([]); setProfile(null); setBenchmark(null); setPage("overview");
   }
+
   function go(id) { setPage(id); setMobileNav(false); setActionError(""); }
 
   async function submitActivity(e) {
@@ -422,11 +512,13 @@ function App() {
     } catch (err) { setActionError(err.message); }
     finally { setBusy(false); }
   }
+
   async function submitGoal(e) {
     e.preventDefault(); setBusy(true); setActionError("");
     try { await api.createGoal({ targetReductionPct: Number(goalForm.targetReductionPct), periodDays: Number(goalForm.periodDays), startDate: goalForm.startDate || null }); setNotice("Your reduction goal has been created."); await refreshData(); }
     catch (err) { setActionError(err.message); } finally { setBusy(false); }
   }
+
   async function submitProfile(e) {
     e.preventDefault(); setBusy(true); setActionError("");
     try {
@@ -446,12 +538,16 @@ function App() {
         organisationReportingOptIn: Boolean(p.organisationReportingOptIn),
         monthlyTargetKg: p.monthlyTargetKg == null ? "" : String(p.monthlyTargetKg)
       }));
-      setProfile(p); setNotice("Preferences saved.");
-    } catch (err) { setActionError(err.message); } finally { setBusy(false); }
+      setProfile(p);
+      setNotice("Profile updated successfully.");
+    } catch (err) { setActionError(err.message); }
+    finally { setBusy(false); }
   }
   async function compare(e) {
     e.preventDefault(); setBenchmarkBusy(true); setActionError("");
-    try { setBenchmark(await api.benchmark(startDate, endDate)); } catch (err) { setActionError(err.message); } finally { setBenchmarkBusy(false); }
+    try { setBenchmark(await api.benchmark(startDate, endDate)); }
+    catch (err) { setActionError(err.message); }
+    finally { setBenchmarkBusy(false); }
   }
 
   const activeGoals = goals.filter((g) => (g.progress?.status || g.status) === "IN_PROGRESS").length;
@@ -465,6 +561,7 @@ function App() {
     String(activity.logDate || "").slice(0, 10) === today()
   ), [activities]);
   const todayEmissions = useMemo(() => sumActivityEmissions(todayActivities), [todayActivities]);
+
   const weekMetrics = useMemo(() => {
     const currentStart = mondayStart(today());
     const previousStart = shiftIsoDate(currentStart, -7);
@@ -482,6 +579,7 @@ function App() {
     const changePct = previous > 0 ? ((current - previous) / previous) * 100 : null;
     return { current, previous, changePct, currentCount: currentRows.length, previousCount: previousRows.length };
   }, [activities]);
+
   const monthMetrics = useMemo(() => {
     const now = dateFromIso(today());
     const monthStart = isoDate(new Date(now.getFullYear(), now.getMonth(), 1));
@@ -505,6 +603,7 @@ function App() {
       activityCount: monthRows.length
     };
   }, [activities, profile?.monthlyTargetKg]);
+
   const goalProjection = useMemo(() => {
     if (!currentGoal?.progress || !currentGoal.startDate) return null;
     const periodDays = Math.max(1, Number(currentGoal.periodDays || 0));
@@ -567,6 +666,7 @@ function App() {
   const emissionPreview = selectedEmissionFactor && Number.isFinite(previewQuantity) && previewQuantity > 0
     ? previewQuantity * Number(selectedEmissionFactor.kgCo2ePerUnit)
     : null;
+
   const quickLogItems = useMemo(() => {
     const seen = new Set();
     return activities.filter((activity) => {
@@ -576,6 +676,7 @@ function App() {
       return true;
     }).slice(0, 5);
   }, [activities]);
+
   const filteredActivities = useMemo(() => {
     const query = activitySearch.trim().toLowerCase();
     return activities.filter((activity) => {
@@ -585,6 +686,7 @@ function App() {
       return categoryMatch && searchMatch;
     });
   }, [activities, activitySearch, activityCategory]);
+
   function useQuickLog(activity) {
     setActivityForm({
       category: activity.category,
@@ -602,14 +704,17 @@ function App() {
     setShowActivityForm(true);
     setActionError("");
   }
+
   function exportActivities() {
     if (!filteredActivities.length) return;
     downloadActivitiesCsv(filteredActivities);
     setNotice("CSV export prepared for " + filteredActivities.length + " activities.");
   }
+
   const pageLabel = NAV.find((n) => n[0] === page)?.[1] || "Overview";
   const greeting = useMemo(() => new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 17 ? "Good afternoon" : "Good evening", []);
   const firstName = (username || "there").split(/[._-]/)[0];
+
   if (!authenticated) return <Suspense fallback={<div className="landing-loading">Preparing your CarbonTrack experience…</div>}><LandingExperience onLogin={login} onRegister={register} busy={authBusy} error={authError} /></Suspense>;
 
   return <div className="app-shell">
@@ -618,269 +723,949 @@ function App() {
       <div className="sidebar-brand"><Mark /><button className="mobile-close" onClick={() => setMobileNav(false)}>×</button></div>
       <div className="workspace-switch"><span className="workspace-mark">C</span><div><b>Personal space</b><small>Individual account</small></div><span>⌄</span></div>
       {["WORKSPACE", "INSIGHTS", "ORGANISATION", "ACCOUNT"].map((group) => <div className="nav-group" key={group}><span className="nav-kicker">{group}</span>{NAV.filter((n) => n[3] === group).map((n) => <button key={n[0]} className={"nav-item " + (page === n[0] ? "active" : "")} onClick={() => go(n[0])}><span className="nav-icon">{n[2]}</span>{n[1]}{n[0] === "goals" && activeGoals > 0 && <small>{activeGoals}</small>}</button>)}</div>)}
-      <div className="sidebar-bottom"><div className="sidebar-note"><span>✳</span><b>Progress over perfection.</b><p>Small, consistent changes make a measurable difference.</p></div><div className="user-row"><span className="avatar">{(username || "C")[0].toUpperCase()}</span><div><b>{username}</b><small>Personal account</small></div><button title="Sign out" onClick={signOut}>↗</button></div></div>
+      <div className="sidebar-bottom"><div className="sidebar-note"><span>✳</span><b>Progress over perfection.</b><p>Small, consistent changes make a measurable difference.</p></div><div className="user-row"><button
+        className="avatar profile-avatar-button"
+        onClick={() => go("profile")}
+        title="Open profile"
+        aria-label="Open profile"
+      >
+        <UserAvatar username={username || "CarbonTrack"} size={36} />
+      </button><div><b>{username}</b><small>Personal account</small></div><button title="Sign out" onClick={signOut}>↗</button></div></div>
     </aside>
     <main className="main-area">
-      <header className="topbar"><div className="topbar-left"><button className="hamburger" onClick={() => setMobileNav(true)}>☰</button><span>Workspace <i>›</i> <b>{pageLabel}</b></span></div><div className="topbar-right"><span>◷ {dateLabel(today(), { weekday: "short", day: "numeric", month: "short" })}</span><span className="topbar-divider" /><span className="top-avatar">{(username || "C")[0].toUpperCase()}</span><b>{username}</b></div></header>
+      <header className="topbar"><div className="topbar-left"><button className="hamburger" onClick={() => setMobileNav(true)}>☰</button><span>Workspace <i>›</i> <b>{pageLabel}</b></span></div><div className="topbar-right"><span>◷ {dateLabel(today(), { weekday: "short", day: "numeric", month: "short" })}</span><span className="topbar-divider" /><button className="theme-toggle" onClick={toggleTheme} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"} aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>{theme === "dark" ? "☀" : "🌙"}</button><button
+        className="top-avatar profile-avatar-button"
+        onClick={() => go("profile")}
+        title="Open profile"
+        aria-label="Open profile"
+      >
+        <UserAvatar username={username || "CarbonTrack"} size={36} />
+      </button><b>{username}</b></div></header>
       <div className="page-content">
         <FadeContent key={page} effect="focus" blur={2} duration={0.55} className="app-page-reveal">
-        {warnings.length > 0 && <div className="alert alert-warning"><b>Some sections could not load.</b> {warnings.join(" · ")} <button onClick={refreshData}>Retry</button></div>}
-        {actionError && <div className="alert alert-error">{actionError}<button onClick={() => setActionError("")}>×</button></div>}
+          {warnings.length > 0 && <div className="alert alert-warning"><b>Some sections could not load.</b> {warnings.join(" · ")} <button onClick={refreshData}>Retry</button></div>}
+          {actionError && <div className="alert alert-error">{actionError}<button onClick={() => setActionError("")}>×</button></div>}
 
-        {page === "overview" && <>
-          <section className="dashboard-hero">
-            <div className="hero-copy">
-              <span className="hero-eyebrow">CARBONTRACK / PERSONAL IMPACT</span>
-              <h1>{greeting}, {firstName}.</h1>
-              <p>Your footprint is measurable. Your next improvement starts with one small action.</p>
-              <div className="hero-actions">
-                <Button onClick={() => { go("activity"); setShowActivityForm(true); }}>＋ Log activity</Button>
-                <button className="hero-link" onClick={() => go("recommendations")}>Explore recommendations <span>→</span></button>
-              </div>
-            </div>
-            <div className="hero-stat">
-              <span className="hero-stat-label">EMISSIONS IN SELECTED RANGE</span>
-              <strong>{kg(analytics?.totalEmissionsKg, 1)} <small>kg CO₂e</small></strong>
-              <span className="hero-stat-range">{dateLabel(startDate, { day: "numeric", month: "short" })} – {dateLabel(endDate, { day: "numeric", month: "short" })}</span>
-              <div className="hero-stat-divider" />
-              <div className="hero-stat-bottom">
-                <div><b>{leadingCategory ? words(leadingCategory.category) : "—"}</b><small>Leading category</small></div>
-                <div><b>{trackedDays}</b><small>Days tracked</small></div>
-              </div>
-            </div>
-            <span className="hero-decoration hero-decoration-one" />
-            <span className="hero-decoration hero-decoration-two" />
-          </section>
-          <FadeContent effect="fade" blur={2} duration={0.7}>
-            <section className="immersive-dashboard-gallery">
-              <div className="immersive-dashboard-gallery-copy"><span>IMPACT IN MOTION / 01—04</span><b>Explore your footprint from every angle.</b><small>Drag or use the arrows to move through the experience.</small></div>
-              <DepthCarousel items={[{ image: "/visuals/activity-impact.svg", alt: "Activity impact" }, { image: "/visuals/category-insight.svg", alt: "Category insights" }, { image: "/visuals/goal-trajectory.svg", alt: "Goal trajectory" }, { image: "/visuals/community-network.svg", alt: "Community progress" }]} cardWidth={205} cardHeight={250} radius={13} tint="#070b0a" depth={145} spread={77} tilt={20} perspective={1250} visibleCards={2} falloff={0.24} blur={1.5} duration={650} showControls showIndicators loop className="immersive-dashboard-carousel" />
-            </section>
-          </FadeContent>
-          <div className="metric-grid">
-            <Metric label="Activities tracked" value={activities.length} unit="entries" detail="Across your activity log" tone="blue" />
-            <Metric label="Active tracking days" value={trackedDays} unit="days" detail="Distinct days with an entry" tone="green" />
-            <Metric label="Goals in progress" value={activeGoals} unit="active" detail={goals.length + " total goals"} tone="amber" />
-            <Metric label="Badges earned" value={badges.length} unit="awards" detail="Milestones from your activity" tone="rose" />
-          </div>
-          <div className="m3-dashboard-grid">
-            <section className="surface m3-summary-card">
-              <span className="kicker">TODAY'S FOOTPRINT</span>
-              <strong>{kg(todayEmissions, 3)} <small>kg CO₂e</small></strong>
-              <p>{todayActivities.length} {todayActivities.length === 1 ? "activity" : "activities"} recorded today</p>
-            </section>
-            <section className="surface m3-summary-card">
-              <span className="kicker">CURRENT WEEK</span>
-              <strong>{kg(weekMetrics.current, 2)} <small>kg CO₂e</small></strong>
-              <p>{weekMetrics.currentCount} activities · Monday to today</p>
-            </section>
-            <section className="surface m3-summary-card">
-              <span className="kicker">PREVIOUS WEEK · SAME DAYS</span>
-              <strong>{kg(weekMetrics.previous, 2)} <small>kg CO₂e</small></strong>
-              <p>{weekMetrics.changePct === null
-                ? "No previous-week baseline yet"
-                : Math.abs(weekMetrics.changePct).toFixed(1) + "% " + (weekMetrics.changePct > 0 ? "higher" : weekMetrics.changePct < 0 ? "lower" : "unchanged") + " than the comparable period"}</p>
-            </section>
-            <section className="surface m3-summary-card m3-month-summary">
-              <span className="kicker">MONTHLY GOAL PROGRESS</span>
-              {monthMetrics.hasTarget
-                ? <>
-                    <strong>{kg(monthMetrics.actual, 2)} <small>/ {kg(monthMetrics.monthlyTarget, 2)} kg</small></strong>
-                    <div className="progress-track"><i style={{ width: monthMetrics.monthlyTarget > 0 ? Math.min(100, monthMetrics.actual / monthMetrics.monthlyTarget * 100) + "%" : "0%" }} /></div>
-                    <p>{kg(monthMetrics.expectedToDate, 2)} kg expected by day {monthMetrics.elapsedDays} · monthly target set in Preferences</p>
-                    {monthMetrics.projectedMonthEnd !== null && <p className="month-run-rate">Month-end run-rate estimate: <b>{kg(monthMetrics.projectedMonthEnd, 2)} kg CO₂e</b> · {monthMetrics.projectedMonthEnd <= monthMetrics.monthlyTarget ? "currently within target pace" : "currently above target pace"}</p>}
-                  </>
-                : <>
-                    {monthMetrics.projectedMonthEnd !== null && <p className="month-run-rate">At your current daily average, month-end could reach <b>{kg(monthMetrics.projectedMonthEnd, 2)} kg CO₂e</b>. This is a simple run-rate estimate, not a prediction.</p>}
-                    <p className="m3-no-target">Set your monthly CO₂e target in Preferences to track progress here. <button className="link-btn" type="button" onClick={() => go("preferences")}>Set monthly target →</button></p>
-                  </>}
-            </section>
-          </div>
-          <section className="surface weekly-card">
-            <div className="surface-title">
-              <div><span className="kicker">WEEK-OVER-WEEK</span><h2>Daily emissions comparison</h2></div>
-              <span className="tag">This week vs previous week</span>
-            </div>
-            <div className="weekly-chart-legend"><span><i className="weekly-current-key" /> Current week</span><span><i className="weekly-previous-key" /> Previous week</span></div>
-            <WeeklyComparisonChart activities={activities} />
-          </section>
-          <div className="overview-grid">
-            <section className="surface trend-card"><div className="surface-title"><div><span className="kicker">EMISSIONS OVER TIME</span><h2>Your footprint trend</h2></div><select value={period} onChange={(e) => setPeriod(e.target.value)}><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
-              <div className="date-filter">
-                <div className="range-pills" aria-label="Quick date range">
-                  <button className={startDate === daysAgo(6) ? "selected" : ""} onClick={() => { setStartDate(daysAgo(6)); setEndDate(today()); }}>7D</button>
-                  <button className={startDate === daysAgo(29) ? "selected" : ""} onClick={() => { setStartDate(daysAgo(29)); setEndDate(today()); }}>30D</button>
-                  <button className={startDate === daysAgo(89) ? "selected" : ""} onClick={() => { setStartDate(daysAgo(89)); setEndDate(today()); }}>90D</button>
+          {page === "overview" && <>
+            <section className="dashboard-hero">
+              <div className="hero-copy">
+                <span className="hero-eyebrow">CARBONTRACK / PERSONAL IMPACT</span>
+                <h1>{greeting}, {firstName}.</h1>
+                <p>Your footprint is measurable. Your next improvement starts with one small action.</p>
+                <div className="hero-actions">
+                  <Button onClick={() => { go("activity"); setShowActivityForm(true); }}>＋ Log activity</Button>
+                  <button className="hero-link" onClick={() => go("recommendations")}>Explore recommendations <span>→</span></button>
                 </div>
-                <label>From <input type="date" value={startDate} max={endDate} onChange={(e) => setStartDate(e.target.value)} /></label>
-                <label>To <input type="date" value={endDate} min={startDate} max={today()} onChange={(e) => setEndDate(e.target.value)} /></label>
-                <button onClick={refreshData} title="Refresh data" aria-label="Refresh data">↻</button>
               </div>
-              <TrendChart points={analytics?.timeline || []} />
+              <div className="hero-stat">
+                <span className="hero-stat-label">EMISSIONS IN SELECTED RANGE</span>
+                <strong>{kg(analytics?.totalEmissionsKg, 1)} <small>kg CO₂e</small></strong>
+                <span className="hero-stat-range">{dateLabel(startDate, { day: "numeric", month: "short" })} – {dateLabel(endDate, { day: "numeric", month: "short" })}</span>
+                <div className="hero-stat-divider" />
+                <div className="hero-stat-bottom">
+                  <div><b>{leadingCategory ? words(leadingCategory.category) : "—"}</b><small>Leading category</small></div>
+                  <div><b>{trackedDays}</b><small>Days tracked</small></div>
+                </div>
+              </div>
+              <span className="hero-decoration hero-decoration-one" />
+              <span className="hero-decoration hero-decoration-two" />
             </section>
-            <section className="surface category-card"><div className="surface-title"><div><span className="kicker">WHERE IT COMES FROM</span><h2>Category breakdown</h2></div></div><CategoryChart rows={analytics?.categoryTotals || []} /><p className="chart-foot">Based on recorded emissions in the selected date range.</p></section>
-          </div>
-          <div className="insight-strip">
-            <section className="surface insight-card">
-              <div className="insight-heading"><span className="insight-icon">✳</span><span className="kicker">A PRACTICAL NEXT STEP</span></div>
-              {recommendations[0] ? <><h3>{recommendations[0].title}</h3><p>{recommendations[0].action}</p><button className="link-btn" onClick={() => go("recommendations")}>See all recommendations →</button></> : <><h3>Build your first insight</h3><p>Log a few activities to receive suggestions based on your own footprint.</p><button className="link-btn" onClick={() => { go("activity"); setShowActivityForm(true); }}>Log an activity →</button></>}
+            <FadeContent effect="fade" blur={2} duration={0.7}>
+              <section className="immersive-dashboard-gallery">
+                <div className="immersive-dashboard-gallery-copy"><span>IMPACT IN MOTION / 01—04</span><b>Explore your footprint from every angle.</b><small>Drag or use the arrows to move through the experience.</small></div>
+                <DepthCarousel items={[{ image: "/visuals/activity-impact.svg", alt: "Activity impact" }, { image: "/visuals/category-insight.svg", alt: "Category insights" }, { image: "/visuals/goal-trajectory.svg", alt: "Goal trajectory" }, { image: "/visuals/community-network.svg", alt: "Community progress" }]} cardWidth={205} cardHeight={250} radius={13} tint="#070b0a" depth={145} spread={77} tilt={20} perspective={1250} visibleCards={2} falloff={0.24} blur={1.5} duration={650} showControls showIndicators loop className="immersive-dashboard-carousel" />
+              </section>
+            </FadeContent>
+            <div className="metric-grid">
+              <Metric label="Activities tracked" value={activities.length} unit="entries" detail="Across your activity log" tone="blue" />
+              <Metric label="Active tracking days" value={trackedDays} unit="days" detail="Distinct days with an entry" tone="green" />
+              <Metric label="Goals in progress" value={activeGoals} unit="active" detail={goals.length + " total goals"} tone="amber" />
+              <Metric label="Badges earned" value={badges.length} unit="awards" detail="Milestones from your activity" tone="rose" />
+            </div>
+            <div className="m3-dashboard-grid">
+              <section className="surface m3-summary-card"><span className="kicker">TODAY'S FOOTPRINT</span><strong>{kg(todayEmissions, 3)} <small>kg CO₂e</small></strong><p>{todayActivities.length} {todayActivities.length === 1 ? "activity" : "activities"} recorded today</p></section>
+              <section className="surface m3-summary-card"><span className="kicker">CURRENT WEEK</span><strong>{kg(weekMetrics.current, 2)} <small>kg CO₂e</small></strong><p>{weekMetrics.currentCount} activities · Monday to today</p></section>
+              <section className="surface m3-summary-card"><span className="kicker">PREVIOUS WEEK · SAME DAYS</span><strong>{kg(weekMetrics.previous, 2)} <small>kg CO₂e</small></strong><p>{weekMetrics.changePct === null ? "No previous-week baseline yet" : Math.abs(weekMetrics.changePct).toFixed(1) + "% " + (weekMetrics.changePct > 0 ? "higher" : weekMetrics.changePct < 0 ? "lower" : "unchanged") + " than the comparable period"}</p></section>
+              <section className="surface m3-summary-card m3-month-summary">
+                <span className="kicker">MONTHLY GOAL PROGRESS</span>
+                {monthMetrics.hasTarget ? <>
+                  <strong>{kg(monthMetrics.actual, 2)} <small>/ {kg(monthMetrics.monthlyTarget, 2)} kg</small></strong>
+                  <div className="progress-track"><i style={{ width: monthMetrics.monthlyTarget > 0 ? Math.min(100, monthMetrics.actual / monthMetrics.monthlyTarget * 100) + "%" : "0%" }} /></div>
+                  <p>{kg(monthMetrics.expectedToDate, 2)} kg expected by day {monthMetrics.elapsedDays} · monthly target set in Preferences</p>
+                  {monthMetrics.projectedMonthEnd !== null && <p className="month-run-rate">Month-end run-rate estimate: <b>{kg(monthMetrics.projectedMonthEnd, 2)} kg CO₂e</b> · {monthMetrics.projectedMonthEnd <= monthMetrics.monthlyTarget ? "currently within target pace" : "currently above target pace"}</p>}
+                </> : <>
+                  {monthMetrics.projectedMonthEnd !== null && <p className="month-run-rate">At your current daily average, month-end could reach <b>{kg(monthMetrics.projectedMonthEnd, 2)} kg CO₂e</b>. This is a simple run-rate estimate, not a prediction.</p>}
+                  <p className="m3-no-target">Set your monthly CO₂e target in Preferences to track progress here. <button className="link-btn" type="button" onClick={() => go("preferences")}>Set monthly target →</button></p>
+                </>}
+              </section>
+            </div>
+            <section className="surface weekly-card">
+              <div className="surface-title"><div><span className="kicker">WEEK-OVER-WEEK</span><h2>Daily emissions comparison</h2></div><span className="tag">This week vs previous week</span></div>
+              <div className="weekly-chart-legend"><span><i className="weekly-current-key" /> Current week</span><span><i className="weekly-previous-key" /> Previous week</span></div>
+              <WeeklyComparisonChart activities={activities} />
             </section>
-            <section className="surface insight-card goal-insight">
-              <div className="insight-heading"><span className="insight-icon">◎</span><span className="kicker">GOAL CHECK-IN</span></div>
-              {currentGoal ? <><h3>{currentGoal.targetReductionPct}% reduction target</h3><p>{kg(currentGoal.progress?.reductionPct, 1)}% reduction achieved over a {currentGoal.periodDays}-day goal period.</p><div className="progress-track"><i style={{ width: Math.max(0, Math.min(100, Number(currentGoal.progress?.reductionPct || 0) / Number(currentGoal.targetReductionPct || 1) * 100)) + "%" }} /></div><button className="link-btn" onClick={() => go("goals")}>Review goal progress →</button></> : <><h3>Choose a goal to work toward</h3><p>A time-bound reduction target makes your progress easier to measure.</p><button className="link-btn" onClick={() => go("goals")}>Create a goal →</button></>}
-            </section>
-          </div>
-          <GoalProjectionCard projection={goalProjection} goal={currentGoal || { periodDays: 30 }} />
-          <section className="surface recent-card immersive-app-list-card"><div className="surface-title"><div><span className="kicker">YOUR LATEST RECORDS</span><h2>Recent activity</h2></div><button className="link-btn" onClick={() => go("activity")}>View activity log →</button></div>{activities.length ? <AnimatedList items={activities.slice(0, 8).map((a) => ({ id: a.id, icon: CATEGORIES[a.category]?.symbol || "◉", title: words(a.activityType), description: dateLabel(a.logDate) + " · " + kg(a.quantity) + " " + a.unit, meta: kg(a.co2eKg, 2) + " kg" }))} theme="dark" animation="pop" stagger={0.045} showGradients displayScrollbar width="100%" maxHeight={340} accentColor="#c6f27c" radius={13} gap={8} onItemSelect={() => go("activity")} /> : <Empty title="No activities yet" text="Your latest records will appear here after you log an activity." action={<Button onClick={() => { go("activity"); setShowActivityForm(true); }}>＋ Log activity</Button>} />}</section>
-          {loading && <div className="loading"><span /> Refreshing your data…</div>}
-        </>}
+            <div className="overview-grid">
+              <section className="surface trend-card"><div className="surface-title"><div><span className="kicker">EMISSIONS OVER TIME</span><h2>Your footprint trend</h2></div><select value={period} onChange={(e) => setPeriod(e.target.value)}><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
+                <div className="date-filter">
+                  <div className="range-pills" aria-label="Quick date range">
+                    <button className={startDate === daysAgo(6) ? "selected" : ""} onClick={() => { setStartDate(daysAgo(6)); setEndDate(today()); }}>7D</button>
+                    <button className={startDate === daysAgo(29) ? "selected" : ""} onClick={() => { setStartDate(daysAgo(29)); setEndDate(today()); }}>30D</button>
+                    <button className={startDate === daysAgo(89) ? "selected" : ""} onClick={() => { setStartDate(daysAgo(89)); setEndDate(today()); }}>90D</button>
+                  </div>
+                  <label>From <input type="date" value={startDate} max={endDate} onChange={(e) => setStartDate(e.target.value)} /></label>
+                  <label>To <input type="date" value={endDate} min={startDate} max={today()} onChange={(e) => setEndDate(e.target.value)} /></label>
+                  <button onClick={refreshData} title="Refresh data" aria-label="Refresh data">↻</button>
+                </div>
+                <TrendChart points={analytics?.trend || []} />
+              </section>
+              <section className="surface category-card"><div className="surface-title"><div><span className="kicker">WHERE IT COMES FROM</span><h2>Emissions by category</h2></div></div><CategoryChart rows={analytics?.categoryTotals || []} /></section>
+            </div>
+            <div className="insight-strip">
+              <section className="surface insight-card">
+                <div className="insight-heading"><span className="insight-icon">✳</span><span className="kicker">A PRACTICAL NEXT STEP</span></div>
+                {recommendations[0] ? <>
+                  <h3>{recommendations[0].title}</h3>
+                  <p>{recommendations[0].action}</p>
+                  <button className="link-btn" onClick={() => go("recommendations")}>See all recommendations →</button>
+                </> : <>
+                  <h3>Build your first insight</h3>
+                  <p>Log a few activities to receive suggestions based on your own footprint.</p>
+                  <button className="link-btn" onClick={() => { go("activity"); setShowActivityForm(true); }}>Log an activity →</button>
+                </>}
+              </section>
 
-        {page === "activity" && <>
-          <PageHeading kicker="BUILD A CLEARER PICTURE" title="Activity log" subtitle="Record everyday choices. CarbonTrack calculates the associated CO₂e using your configured emission factors." action={<Button onClick={() => setShowActivityForm((v) => !v)}>＋ Add activity</Button>} />
-          {quickLogItems.length > 0 && <section className="surface quick-log-card">
-            <div className="surface-title"><div><span className="kicker">QUICK LOG</span><h2>Repeat a recent activity</h2></div><span className="tag">Prefilled for review</span></div>
-            <div className="quick-log-list">{quickLogItems.map((item) => (
-              <button className="quick-log-item" type="button" key={item.id} onClick={() => useQuickLog(item)}>
-                <span>{CATEGORIES[item.category]?.symbol || "•"}</span>
-                <b>{words(item.activityType)}</b>
-                <small>{kg(item.quantity)} {item.unit}</small>
-                <em>{kg(item.co2eKg, 3)} kg CO₂e last time</em>
-              </button>
-            ))}</div>
-          </section>}
-          {showActivityForm && <section className="surface form-card"><div className="surface-title"><div><span className="kicker">NEW ENTRY</span><h2>Log an activity</h2></div><button className="close-form" onClick={() => setShowActivityForm(false)}>×</button></div>
-            <div className="activity-category-tabs" role="group" aria-label="Activity category">
-              {Object.entries(CATEGORIES).map(([category, info]) => <button
-                type="button"
-                key={category}
-                className={activityForm.category === category ? "selected" : ""}
-                onClick={() => setActivityForm((current) => ({
-                  ...current,
-                  category,
-                  activityType: TYPES[category][0][0],
-                  quantity: "",
-                  flightDistanceKm: "",
-                  servings: "",
-                  spendAmount: ""
+              <section className="surface insight-card goal-insight">
+                <div className="insight-heading"><span className="insight-icon">◎</span><span className="kicker">GOAL CHECK-IN</span></div>
+                {currentGoal ? <>
+                  <h3>{currentGoal.targetReductionPct}% reduction target</h3>
+                  <p>{kg(currentGoal.progress?.reductionPct, 1)}% reduction achieved over a {currentGoal.periodDays}-day goal period.</p>
+                  <div className="progress-track">
+                    <i style={{ width: Math.max(0, Math.min(100, Number(currentGoal.progress?.reductionPct || 0) / Number(currentGoal.targetReductionPct || 1) * 100)) + "%" }} />
+                  </div>
+                  <button className="link-btn" onClick={() => go("goals")}>Review goal progress →</button>
+                </> : <>
+                  <h3>Choose a goal to work toward</h3>
+                  <p>A time-bound reduction target makes your progress easier to measure.</p>
+                  <button className="link-btn" onClick={() => go("goals")}>Create a goal →</button>
+                </>}
+              </section>
+            </div>
+
+            <GoalProjectionCard projection={goalProjection} goal={currentGoal || { periodDays: 30 }} />
+
+            <section className="surface recent-card immersive-app-list-card">
+              <div className="surface-title">
+                <div><span className="kicker">YOUR LATEST RECORDS</span><h2>Recent activity</h2></div>
+                <button className="link-btn" onClick={() => go("activity")}>View activity log →</button>
+              </div>
+              {activities.length ? (
+                <AnimatedList
+                  items={activities.slice(0, 8).map((a) => ({
+                    id: a.id,
+                    icon: CATEGORIES[a.category]?.symbol || "◉",
+                    title: words(a.activityType),
+                    description: dateLabel(a.logDate) + " · " + kg(a.quantity) + " " + a.unit,
+                    meta: kg(a.co2eKg, 2) + " kg"
+                  }))}
+                  theme="dark"
+                  animation="pop"
+                  stagger={0.045}
+                  showGradients
+                  displayScrollbar
+                  width="100%"
+                  maxHeight={340}
+                  accentColor="#c6f27c"
+                  radius={13}
+                  gap={8}
+                  onItemSelect={() => go("activity")}
+                />
+              ) : (
+                <Empty
+                  title="No activities yet"
+                  text="Your latest records will appear here after you log an activity."
+                  action={<Button onClick={() => { go("activity"); setShowActivityForm(true); }}>＋ Log activity</Button>}
+                />
+              )}
+            </section>
+            {loading && <div className="loading"><span /> Refreshing your data…</div>}
+          </>}
+
+
+          {page === "profile" && <>
+            <PageHeading
+              kicker="YOUR CARBONTRACK ACCOUNT"
+              title="My Profile"
+              subtitle="Your personal details, sustainability progress and recent activity."
+              action={
+                <Button kind="secondary" onClick={() => go("preferences")}>
+                  Edit preferences →
+                </Button>
+              }
+            />
+
+            {/* Profile header */}
+            <section className="surface profile-hero">
+              <div className="profile-avatar-large">
+                <UserAvatar username={profile?.username || username || "CarbonTrack"} size={76} />
+              </div>
+
+              <div className="profile-hero-info">
+                <span className="kicker">CARBONTRACK MEMBER</span>
+                <h2>{profile?.username || username || "User"}</h2>
+                <p>{profile?.email || "Email not available"}</p>
+                <div className="profile-tags">
+                  <Tag>{profile?.role || "USER"}</Tag>
+                  <Tag>Member since {dateLabel(profile?.createdAt)}</Tag>
+                </div>
+              </div>
+
+              <div className="profile-edit-action">
+                <Button kind="secondary" onClick={() => go("preferences")}>
+                  ⚙ Preferences
+                </Button>
+              </div>
+            </section>
+
+            {/* Statistics */}
+            <div className="profile-stats-grid">
+              <Metric
+                label="Activities logged"
+                value={activities.length}
+                hint="Total recorded activities"
+              />
+              <Metric
+                label="Active goals"
+                value={activeGoals.length}
+                hint="Goals currently in progress"
+              />
+              <Metric
+                label="Badges earned"
+                value={badges.length}
+                hint="Achievements unlocked"
+              />
+              <Metric
+                label="Days tracked"
+                value={trackedDays}
+                hint="Days with recorded activity"
+              />
+            </div>
+
+            {/* Personal information and preferences */}
+            <div className="profile-content-grid">
+              <section className="surface profile-section">
+                <div className="surface-title">
+                  <div>
+                    <span className="kicker">ACCOUNT INFORMATION</span>
+                    <h2>Personal details</h2>
+                  </div>
+                  <span className="large-soft-icon">♙</span>
+                </div>
+
+                <div className="profile-detail-list">
+                  <div>
+                    <span>Username</span>
+                    <b>{profile?.username || username || "—"}</b>
+                  </div>
+                  <div>
+                    <span>Email address</span>
+                    <b>{profile?.email || "—"}</b>
+                  </div>
+                  <div>
+                    <span>Account role</span>
+                    <b>{profile?.role || "USER"}</b>
+                  </div>
+                  <div>
+                    <span>Joined CarbonTrack</span>
+                    <b>{dateLabel(profile?.createdAt)}</b>
+                  </div>
+                </div>
+              </section>
+
+              <section className="surface profile-section">
+                <div className="surface-title">
+                  <div>
+                    <span className="kicker">SUSTAINABILITY SETTINGS</span>
+                    <h2>Your preferences</h2>
+                  </div>
+                  <span className="large-soft-icon">✳</span>
+                </div>
+
+                <div className="profile-detail-list">
+                  <div>
+                    <span>Preferred transport</span>
+                    <b>{profileForm.preferredTransport ? words(profileForm.preferredTransport) : "Not specified"}</b>
+                  </div>
+                  <div>
+                    <span>Diet preference</span>
+                    <b>{profileForm.dietPreference ? words(profileForm.dietPreference) : "Not specified"}</b>
+                  </div>
+                  <div>
+                    <span>Sustainability focus</span>
+                    <b>{profileForm.sustainabilityGoal ? words(profileForm.sustainabilityGoal) : "Not specified"}</b>
+                  </div>
+                  <div>
+                    <span>Monthly CO₂e target</span>
+                    <b>
+                      {profileForm.monthlyTargetKg
+                        ? `${profileForm.monthlyTargetKg} kg`
+                        : "Not set"}
+                    </b>
+                  </div>
+                </div>
+
+                <Button kind="secondary" onClick={() => go("preferences")}>
+                  Update preferences →
+                </Button>
+              </section>
+            </div>
+
+            {/* Privacy settings */}
+            <section className="surface profile-section">
+              <div className="surface-title">
+                <div>
+                  <span className="kicker">PRIVACY AND PARTICIPATION</span>
+                  <h2>Your sharing settings</h2>
+                </div>
+                <span className="large-soft-icon">▣</span>
+              </div>
+
+              <div className="profile-privacy-list">
+                <div>
+                  <div>
+                    <b>Community benchmark visibility</b>
+                    <p>Share aggregate emissions for community comparisons.</p>
+                  </div>
+                  <Tag>{profileForm.goalVisibility ? "Enabled" : "Disabled"}</Tag>
+                </div>
+
+                <div>
+                  <div>
+                    <b>Leaderboard participation</b>
+                    <p>Allow your alias and aggregated emissions to appear in the leaderboard.</p>
+                  </div>
+                  <Tag>{profileForm.leaderboardOptIn ? "Enabled" : "Disabled"}</Tag>
+                </div>
+
+                <div>
+                  <div>
+                    <b>Organisation reporting</b>
+                    <p>Allow your organisation to include your emissions in internal reports.</p>
+                  </div>
+                  <Tag>{profileForm.organisationReportingOptIn ? "Enabled" : "Disabled"}</Tag>
+                </div>
+              </div>
+
+              <Button kind="secondary" onClick={() => go("preferences")}>
+                Manage privacy settings →
+              </Button>
+            </section>
+
+            {/* Recent activities */}
+            <section className="surface profile-section">
+              <div className="surface-title">
+                <div>
+                  <span className="kicker">YOUR RECENT RECORDS</span>
+                  <h2>Recent activities</h2>
+                </div>
+                <Button kind="secondary" onClick={() => go("activity")}>
+                  View all →
+                </Button>
+              </div>
+
+              {activities.length > 0 ? (
+                <div className="profile-activity-list">
+                  {activities.slice(0, 5).map((activity) => (
+                    <div className="profile-activity-item" key={activity.id}>
+                      <div className="profile-activity-icon">
+                        {CATEGORIES[activity.category]?.symbol || "⌁"}
+                      </div>
+
+                      <div className="profile-activity-info">
+                        <b>{words(activity.activityType || activity.category || "Activity")}</b>
+                        <span>
+                          {words(activity.category || "Other")} · {dateLabel(activity.logDate)}
+                        </span>
+                      </div>
+
+                      <div className="profile-activity-emissions">
+                        <b>{kg(activity.co2eKg)} kg</b>
+                        <span>CO₂e</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <Empty
+                  title="No activities recorded yet"
+                  text="Start logging your daily activities to see your sustainability progress here."
+                  action={
+                    <Button onClick={() => {
+                      go("activity");
+                      setShowActivityForm(true);
+                    }}>
+                      ＋ Log activity
+                    </Button>
+                  }
+                />
+              )}
+            </section>
+
+            {/* Achievements */}
+            <section className="surface profile-section">
+              <div className="surface-title">
+                <div>
+                  <span className="kicker">YOUR MILESTONES</span>
+                  <h2>Achievements</h2>
+                </div>
+                <Button kind="secondary" onClick={() => go("achievements")}>
+                  View all →
+                </Button>
+              </div>
+
+              {badges.length > 0 ? (
+                <div className="profile-badge-list">
+                  {badges.map((badge) => (
+                    <div className="profile-badge-item" key={badge.id || badge.name}>
+                      <span className="profile-badge-icon">◇</span>
+                      <div>
+                        <b>{badge.name}</b>
+                        <span>Earned {dateLabel(badge.awardedAt)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <Empty
+                  title="Your achievements will appear here"
+                  text="Keep tracking activities to unlock CarbonTrack milestones."
+                />
+              )}
+            </section>
+
+            {/* Account actions */}
+            <section className="surface profile-signout">
+              <div>
+                <span className="kicker">ACCOUNT ACTIONS</span>
+                <h2>Manage your account</h2>
+                <p>You can sign out of CarbonTrack from here.</p>
+              </div>
+              <Button kind="secondary" onClick={signOut}>
+                Sign out ↗
+              </Button>
+            </section>
+          </>}
+
+
+          {page === "activity" && <>
+            <PageHeading
+              kicker="BUILD A CLEARER PICTURE"
+              title="Activity log"
+              subtitle="Record everyday choices. CarbonTrack calculates the associated CO₂e using your configured emission factors."
+              action={<Button onClick={() => setShowActivityForm((v) => !v)}>＋ Add activity</Button>}
+            />
+
+            {quickLogItems.length > 0 && (
+              <section className="surface quick-log-card">
+                <div className="surface-title">
+                  <div><span className="kicker">QUICK LOG</span><h2>Repeat a recent activity</h2></div>
+                  <span className="tag">Prefilled for review</span>
+                </div>
+                <div className="quick-log-list">
+                  {quickLogItems.map((item) => (
+                    <button className="quick-log-item" type="button" key={item.id} onClick={() => useQuickLog(item)}>
+                      <span>{CATEGORIES[item.category]?.symbol || "•"}</span>
+                      <b>{words(item.activityType)}</b>
+                      <small>{kg(item.quantity)} {item.unit}</small>
+                      <em>{kg(item.co2eKg, 3)} kg CO₂e last time</em>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {showActivityForm && (
+              <section className="surface form-card">
+                <div className="surface-title">
+                  <div><span className="kicker">NEW ENTRY</span><h2>Log an activity</h2></div>
+                  <button className="close-form" onClick={() => setShowActivityForm(false)}>×</button>
+                </div>
+
+                <div className="activity-category-tabs" role="group" aria-label="Activity category">
+                  {Object.entries(CATEGORIES).map(([category, info]) => (
+                    <button
+                      type="button"
+                      key={category}
+                      className={activityForm.category === category ? "selected" : ""}
+                      onClick={() => setActivityForm((current) => ({
+                        ...current,
+                        category,
+                        activityType: TYPES[category][0][0],
+                        quantity: "",
+                        flightDistanceKm: "",
+                        servings: "",
+                        spendAmount: ""
+                      }))}
+                    >
+                      {info.label}
+                    </button>
+                  ))}
+                </div>
+
+                <form className="form-grid" onSubmit={submitActivity}>
+                  <Field label="Category">
+                    <select value={activityForm.category} onChange={(e) => {
+                      const category = e.target.value;
+                      setActivityForm((v) => ({ ...v, category, activityType: TYPES[category][0][0] }));
+                    }}>
+                      <option value="transport">Transport</option>
+                      <option value="electricity">Electricity</option>
+                      <option value="food">Food</option>
+                      <option value="shopping">Shopping</option>
+                    </select>
+                  </Field>
+
+                  <Field label="Activity">
+                    <select value={activityForm.activityType} onChange={(e) => setActivityForm((v) => ({ ...v, activityType: e.target.value }))}>
+                      {TYPES[activityForm.category].map((t) => (
+                        <option key={t[0]} value={t[0]}>{t[1]}</option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  {activityForm.activityType === "flight_travel" ? (
+                    <Field label="Flight distance (km)">
+                      <input type="number" min="0.01" step="0.01" required value={activityForm.flightDistanceKm} onChange={(e) => setActivityForm((v) => ({ ...v, flightDistanceKm: e.target.value }))} />
+                    </Field>
+                  ) : (
+                    <Field label="Quantity">
+                      <input type="number" min="0.01" step="0.01" required value={activityForm.quantity} onChange={(e) => setActivityForm((v) => ({ ...v, quantity: e.target.value }))} />
+                    </Field>
+                  )}
+
+                  <Field label="Unit">
+                    <input readOnly value={selectedEmissionFactor?.unit || selectedActivityType?.[2] || ""} />
+                  </Field>
+
+                  <Field label="Activity date">
+                    <input type="date" max={today()} required value={activityForm.logDate} onChange={(e) => setActivityForm((v) => ({ ...v, logDate: e.target.value }))} />
+                  </Field>
+
+                  {activityForm.category === "electricity" && (
+                    <Field label="Energy source">
+                      <input readOnly value="Grid electricity (configured emission factor)" />
+                    </Field>
+                  )}
+
+                  {activityForm.category === "food" && <>
+                    <Field label="Meal">
+                      <select value={activityForm.mealType} onChange={(e) => setActivityForm((v) => ({ ...v, mealType: e.target.value }))}>
+                        <option value="breakfast">Breakfast</option>
+                        <option value="lunch">Lunch</option>
+                        <option value="dinner">Dinner</option>
+                        <option value="snack">Snack</option>
+                      </select>
+                    </Field>
+                    <Field label="Servings">
+                      <input type="number" min="0.01" step="0.01" required value={activityForm.servings} onChange={(e) => setActivityForm((v) => ({ ...v, servings: e.target.value }))} />
+                    </Field>
+                  </>}
+
+                  {activityForm.category === "shopping" && <>
+                    <Field label="Product category">
+                      <select value={activityForm.productCategory} onChange={(e) => setActivityForm((v) => ({ ...v, productCategory: e.target.value }))}>
+                        <option value="clothing">Clothing</option>
+                        <option value="electronics">Electronics</option>
+                        <option value="paper">Paper</option>
+                        <option value="plastic">Plastic</option>
+                      </select>
+                    </Field>
+                    <Field label="Spend amount">
+                      <input type="number" min="0" step="0.01" required value={activityForm.spendAmount} onChange={(e) => setActivityForm((v) => ({ ...v, spendAmount: e.target.value }))} />
+                    </Field>
+                    <Field label="Currency">
+                      <select value={activityForm.spendCurrency} onChange={(e) => setActivityForm((v) => ({ ...v, spendCurrency: e.target.value }))}>
+                        <option value="INR">INR</option>
+                        <option value="USD">USD</option>
+                        <option value="EUR">EUR</option>
+                        <option value="GBP">GBP</option>
+                      </select>
+                    </Field>
+                  </>}
+
+                  <div className="emission-preview" aria-live="polite">
+                    <span>Estimated emissions preview</span>
+                    <b>{emissionPreview === null ? "Enter a quantity to preview" : kg(emissionPreview, 4) + " kg CO₂e"}</b>
+                    <small>{selectedEmissionFactor ? selectedEmissionFactor.source || "Configured backend emission factor" : "Waiting for a configured factor from the backend"}. The server recalculates the final total when you save.</small>
+                  </div>
+
+                  <div className="form-actions">
+                    <Button type="button" kind="quiet" onClick={() => setShowActivityForm(false)}>Cancel</Button>
+                    <Button type="submit" disabled={busy}>{busy ? "Saving…" : "Save activity →"}</Button>
+                  </div>
+                </form>
+              </section>
+            )}
+
+            <section className="surface table-card">
+              <div className="surface-title activity-table-heading">
+                <div><span className="kicker">ALL RECORDS</span><h2>Recorded activities <small className="count">{filteredActivities.length} / {activities.length}</small></h2></div>
+                <Button kind="secondary" onClick={exportActivities} disabled={!filteredActivities.length}>↓ Export CSV</Button>
+              </div>
+
+              <div className="activity-toolbar">
+                <label className="activity-search">
+                  <span>⌕</span>
+                  <input type="search" placeholder="Search activities, category or date…" value={activitySearch} onChange={(e) => setActivitySearch(e.target.value)} />
+                </label>
+                <label className="activity-category-filter">
+                  <span>Category</span>
+                  <select value={activityCategory} onChange={(e) => setActivityCategory(e.target.value)}>
+                    <option value="all">All categories</option>
+                    <option value="transport">Transport</option>
+                    <option value="electricity">Electricity</option>
+                    <option value="food">Food</option>
+                    <option value="shopping">Shopping</option>
+                  </select>
+                </label>
+                {(activitySearch || activityCategory !== "all") && (
+                  <button className="clear-filter" onClick={() => { setActivitySearch(""); setActivityCategory("all"); }}>Clear filters</button>
+                )}
+              </div>
+
+              <ActivityTable rows={filteredActivities} />
+              {!filteredActivities.length && activities.length > 0 && (
+                <div className="filter-empty">No records match those filters. Try a different search or clear the filters.</div>
+              )}
+            </section>
+          </>}
+
+          {page === "goals" && <>
+            <PageHeading kicker="TURN INTENT INTO ACTION" title="Your goals" subtitle="Set a reduction target and follow your emissions against a comparable baseline." />
+
+            <div className="goal-layout">
+              <section className="surface goal-create">
+                <div className="surface-title">
+                  <div><span className="kicker">NEW COMMITMENT</span><h2>Create a reduction goal</h2></div>
+                  <span className="large-soft-icon">◎</span>
+                </div>
+                <form className="stack-form" onSubmit={submitGoal}>
+                  <Field label="Target reduction" hint="Choose a target between 1% and 100%.">
+                    <div className="input-suffix">
+                      <input type="number" min="1" max="100" step="1" required value={goalForm.targetReductionPct} onChange={(e) => setGoalForm((v) => ({ ...v, targetReductionPct: e.target.value }))} />
+                      <b>%</b>
+                    </div>
+                  </Field>
+                  <Field label="Goal duration">
+                    <select value={goalForm.periodDays} onChange={(e) => setGoalForm((v) => ({ ...v, periodDays: e.target.value }))}>
+                      <option value="7">7 days</option>
+                      <option value="14">14 days</option>
+                      <option value="30">30 days</option>
+                      <option value="60">60 days</option>
+                      <option value="90">90 days</option>
+                      <option value="180">180 days</option>
+                      <option value="365">365 days</option>
+                    </select>
+                  </Field>
+                  <Field label="Start date">
+                    <input type="date" max={today()} value={goalForm.startDate} onChange={(e) => setGoalForm((v) => ({ ...v, startDate: e.target.value }))} />
+                  </Field>
+                  <div className="goal-note">ⓘ Progress compares your activity during the goal period with the same-length period immediately before it.</div>
+                  <Button type="submit" disabled={busy}>{busy ? "Creating…" : "Create goal →"}</Button>
+                </form>
+              </section>
+
+              <section>
+                <div className="section-subhead">
+                  <div><span className="kicker">YOUR COMMITMENTS</span><h2>Goal progress <small className="count">{goals.length}</small></h2></div>
+                </div>
+                {goals.length ? (
+                  <ScrollStack useWindowScroll itemDistance={66} itemStackDistance={18} stackPosition="18%" itemScale={0.035} baseScale={0.97} dimAmount={0.16} blurAmount={0} smoothScroll={false} className="goal-scroll-stack">
+                    {goals.map((g) => (
+                      <ScrollStackItem key={g.id} itemClassName="goal-stack-item">
+                        <GoalCard goal={g} />
+                      </ScrollStackItem>
+                    ))}
+                  </ScrollStack>
+                ) : (
+                  <section className="surface">
+                    <Empty title="No goals yet" text="Create your first reduction goal to start measuring progress." />
+                  </section>
+                )}
+              </section>
+            </div>
+          </>}
+
+          {page === "recommendations" && <>
+            <PageHeading kicker="PRACTICAL NEXT STEPS" title="Recommendations" subtitle="Suggestions based on categories contributing most to your recorded emissions over the last 30 days." action={<Button kind="secondary" onClick={refreshData}>↻ Refresh</Button>} />
+            {recommendations.length ? (
+              <AnimatedList
+                items={recommendations.map((r) => ({
+                  id: r.category,
+                  icon: CATEGORIES[r.category]?.symbol || "✳",
+                  title: r.title,
+                  description: r.action,
+                  meta: words(r.category),
+                  reason: r.reason
                 }))}
-              >{info.label}</button>)}
-            </div>
-            <form className="form-grid" onSubmit={submitActivity}>
-              <Field label="Category"><select value={activityForm.category} onChange={(e) => { const category = e.target.value; setActivityForm((v) => ({ ...v, category, activityType: TYPES[category][0][0] })); }}><option value="transport">Transport</option><option value="electricity">Electricity</option><option value="food">Food</option><option value="shopping">Shopping</option></select></Field>
-              <Field label="Activity"><select value={activityForm.activityType} onChange={(e) => setActivityForm((v) => ({ ...v, activityType: e.target.value }))}>{TYPES[activityForm.category].map((t) => <option key={t[0]} value={t[0]}>{t[1]}</option>)}</select></Field>
-              {activityForm.activityType === "flight_travel" ? <Field label="Flight distance (km)"><input type="number" min="0.01" step="0.01" required value={activityForm.flightDistanceKm} onChange={(e) => setActivityForm((v) => ({ ...v, flightDistanceKm: e.target.value }))} /></Field> : <Field label="Quantity"><input type="number" min="0.01" step="0.01" required value={activityForm.quantity} onChange={(e) => setActivityForm((v) => ({ ...v, quantity: e.target.value }))} /></Field>}
-              <Field label="Unit"><input readOnly value={selectedEmissionFactor?.unit || selectedActivityType?.[2] || ""} /></Field>
-              <Field label="Activity date"><input type="date" max={today()} required value={activityForm.logDate} onChange={(e) => setActivityForm((v) => ({ ...v, logDate: e.target.value }))} /></Field>
-              {activityForm.category === "electricity" && <Field label="Energy source"><input readOnly value="Grid electricity (configured emission factor)" /></Field>}
-              {activityForm.category === "food" && <><Field label="Meal"><select value={activityForm.mealType} onChange={(e) => setActivityForm((v) => ({ ...v, mealType: e.target.value }))}><option value="breakfast">Breakfast</option><option value="lunch">Lunch</option><option value="dinner">Dinner</option><option value="snack">Snack</option></select></Field><Field label="Servings"><input type="number" min="0.01" step="0.01" required value={activityForm.servings} onChange={(e) => setActivityForm((v) => ({ ...v, servings: e.target.value }))} /></Field></>}
-              {activityForm.category === "shopping" && <><Field label="Product category"><select value={activityForm.productCategory} onChange={(e) => setActivityForm((v) => ({ ...v, productCategory: e.target.value }))}><option value="clothing">Clothing</option><option value="electronics">Electronics</option><option value="paper">Paper</option><option value="plastic">Plastic</option></select></Field><Field label="Spend amount"><input type="number" min="0" step="0.01" required value={activityForm.spendAmount} onChange={(e) => setActivityForm((v) => ({ ...v, spendAmount: e.target.value }))} /></Field><Field label="Currency"><select value={activityForm.spendCurrency} onChange={(e) => setActivityForm((v) => ({ ...v, spendCurrency: e.target.value }))}><option value="INR">INR</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option></select></Field></>}
-              <div className="emission-preview" aria-live="polite">
-                <span>Estimated emissions preview</span>
-                <b>{emissionPreview === null ? "Enter a quantity to preview" : kg(emissionPreview, 4) + " kg CO₂e"}</b>
-                <small>{selectedEmissionFactor ? selectedEmissionFactor.source || "Configured backend emission factor" : "Waiting for a configured factor from the backend"}. The server recalculates the final total when you save.</small>
+                theme="dark"
+                animation="slide"
+                stagger={0.06}
+                showGradients
+                displayScrollbar
+                width="100%"
+                maxHeight={430}
+                accentColor="#c6f27c"
+                radius={14}
+                gap={9}
+                onItemSelect={(item) => setNotice(item.reason)}
+              />
+            ) : (
+              <section className="surface">
+                <Empty title="Recommendations will appear here" text="Log activities in transport, electricity, food or shopping. CarbonTrack will use those records to suggest practical changes." action={<Button onClick={() => { go("activity"); setShowActivityForm(true); }}>＋ Log activity</Button>} />
+              </section>
+            )}
+          </>}
+
+          {page === "achievements" && <>
+            <PageHeading kicker="RECOGNISING YOUR MOMENTUM" title="Achievements" subtitle="Badges are awarded when your activity history reaches a milestone." />
+            <div className="surface achievement-summary">
+              <div className="achievement-symbol">◇</div>
+              <div>
+                <span className="kicker">YOUR COLLECTION</span>
+                <h2>{badges.length} <small>of 3 badges earned</small></h2>
+                <p>Keep recording activities to unlock more milestones.</p>
               </div>
-              <div className="form-actions"><Button type="button" kind="quiet" onClick={() => setShowActivityForm(false)}>Cancel</Button><Button type="submit" disabled={busy}>{busy ? "Saving…" : "Save activity →"}</Button></div>
+              <div className="achievement-meter">
+                <div className="progress-track"><i style={{ width: Math.min(100, badges.length / 3 * 100) + "%" }} /></div>
+                <small>{Math.round(Math.min(100, badges.length / 3 * 100))}% completed</small>
+              </div>
+            </div>
+
+            <div className="badge-grid">
+              {[
+                ["First Steps", "Log your first activity", "c"],
+                ["Consistent Tracker", "Log ten activities", "⌁"],
+                ["Carbon Cutter", "Record 10 kg CO₂e or more", "↗"]
+              ].map(([name, description, symbol]) => {
+                const b = badges.find((x) => x.name === name);
+                return (
+                  <article className={"surface badge-card " + (b ? "earned" : "")} key={name}>
+                    <span className="badge-art">{symbol}</span>
+                    <div>
+                      <span className="kicker">{b ? "UNLOCKED" : "MILESTONE"}</span>
+                      <h3>{name}</h3>
+                      <p>{description}</p>
+                      {b && <small>Earned {dateLabel(b.awardedAt)}</small>}
+                    </div>
+                    <Tag>{b ? "✓ Earned" : "Not yet"}</Tag>
+                  </article>
+                );
+              })}
+            </div>
+          </>}
+
+          {page === "community" && <>
+            <PageHeading kicker="A SHARED VIEW OF PROGRESS" title="Community benchmark" subtitle="Compare your recorded emissions with the average among users who opted in to this comparison." />
+
+            <div className="community-grid">
+              <section className="surface benchmark-card">
+                <div className="surface-title">
+                  <div><span className="kicker">DATE-RANGE COMPARISON</span><h2>Your benchmark</h2></div>
+                  <span className="large-soft-icon">◉</span>
+                </div>
+
+                <form className="benchmark-form" onSubmit={compare}>
+                  <Field label="From">
+                    <input type="date" value={startDate} max={endDate} onChange={(e) => setStartDate(e.target.value)} required />
+                  </Field>
+                  <Field label="To">
+                    <input type="date" value={endDate} min={startDate} max={today()} onChange={(e) => setEndDate(e.target.value)} required />
+                  </Field>
+                  <Button type="submit" disabled={benchmarkBusy}>{benchmarkBusy ? "Comparing…" : "Compare →"}</Button>
+                </form>
+
+                {benchmark ? <>
+                  <div className="benchmark-numbers">
+                    <div><span>Your emissions</span><b>{kg(benchmark.yourEmissionsKg)} <small>kg CO₂e</small></b></div>
+                    <div><span>Community average</span><b>{kg(benchmark.communityAverageKg)} <small>kg CO₂e</small></b></div>
+                  </div>
+                  <div className="comparison-result">
+                    <b>{words(benchmark.comparison)}</b>
+                    <span>{benchmark.participantCount} opted-in participants included.</span>
+                  </div>
+                </> : (
+                  <div className="benchmark-placeholder">
+                    <span>↗</span>
+                    <b>Choose a date range to compare</b>
+                    <p>The comparison uses only people who enabled benchmark visibility in their preferences.</p>
+                  </div>
+                )}
+              </section>
+
+              <aside className="surface privacy-card">
+                <span className="privacy-lock">▣</span>
+                <span className="kicker">YOUR DATA, YOUR CHOICE</span>
+                <h2>Participation is optional</h2>
+                <p>Only aggregate emissions contribute to the community average when you enable benchmark visibility. Your activity details are not shown to other users.</p>
+                <div className="privacy-state">
+                  <i className={profile?.goalVisibility ? "on" : ""} />
+                  {profile?.goalVisibility ? "Benchmark sharing is enabled" : "Benchmark sharing is disabled"}
+                </div>
+                <Button kind="secondary" onClick={() => go("preferences")}>Manage privacy settings →</Button>
+              </aside>
+            </div>
+
+            {benchmark && benchmark.participantCount === 0 && (
+              <div className="alert alert-warning">No opted-in participants were found for this range. Enable visibility in Preferences and invite others to opt in.</div>
+            )}
+          </>}
+
+          {page === "leaderboard" && <LeaderboardPage profile={profile} onPreferences={() => go("preferences")} />}
+
+          {page === "organisation" && (
+            <OrganisationPage
+              profile={profile}
+              onProfileRefresh={async () => {
+                const nextProfile = await api.profile();
+                setProfile(nextProfile);
+                setUsername(nextProfile.username || username);
+                setProfileForm((current) => ({
+                  ...current,
+                  leaderboardOptIn: Boolean(nextProfile.leaderboardOptIn),
+                  organisationReportingOptIn: Boolean(nextProfile.organisationReportingOptIn)
+                }));
+              }}
+            />
+          )}
+
+          {page === "preferences" && <>
+            <PageHeading kicker="MAKE CARBONTRACK YOURS" title="Preferences" subtitle="Set your monthly footprint target, sustainability preferences and independent data-sharing controls." />
+
+            <form className="surface preferences-card" onSubmit={submitProfile}>
+              <div className="surface-title">
+                <div><span className="kicker">PERSONAL SETTINGS</span><h2>Your sustainability profile</h2></div>
+                <span className="large-soft-icon">⚙</span>
+              </div>
+
+              <div className="preferences-grid">
+                <Field label="Preferred transport">
+                  <select value={profileForm.preferredTransport} onChange={(e) => setProfileForm((v) => ({ ...v, preferredTransport: e.target.value }))}>
+                    <option value="">Not specified</option>
+                    <option value="walking">Walking</option>
+                    <option value="cycling">Cycling</option>
+                    <option value="public_transport">Public transport</option>
+                    <option value="car">Car</option>
+                    <option value="motorcycle">Motorcycle</option>
+                    <option value="train">Train</option>
+                  </select>
+                </Field>
+
+                <Field label="Diet preference">
+                  <select value={profileForm.dietPreference} onChange={(e) => setProfileForm((v) => ({ ...v, dietPreference: e.target.value }))}>
+                    <option value="">Not specified</option>
+                    <option value="omnivore">Omnivore</option>
+                    <option value="vegetarian">Vegetarian</option>
+                    <option value="vegan">Vegan</option>
+                    <option value="pescatarian">Pescatarian</option>
+                  </select>
+                </Field>
+
+                <Field label="Sustainability focus">
+                  <select value={profileForm.sustainabilityGoal} onChange={(e) => setProfileForm((v) => ({ ...v, sustainabilityGoal: e.target.value }))}>
+                    <option value="">Not specified</option>
+                    <option value="reduce_transport_emissions">Reduce transport emissions</option>
+                    <option value="reduce_energy_use">Reduce energy use</option>
+                    <option value="eat_more_plant_based">Eat more plant-based meals</option>
+                    <option value="shop_consciously">Shop more consciously</option>
+                    <option value="overall_reduction">Overall footprint reduction</option>
+                  </select>
+                </Field>
+
+                <Field label="Measurement system">
+                  <div className="fixed-setting"><b>Metric system</b><span>kg · km · kWh</span></div>
+                </Field>
+
+                <Field label="Monthly CO₂e target (kg)" hint="Set your cumulative emissions budget for the current calendar month. Leave blank to remove it.">
+                  <input type="number" min="0.01" max="9999999999.99" step="0.01" placeholder="e.g. 120.00" value={profileForm.monthlyTargetKg} onChange={(e) => setProfileForm((v) => ({ ...v, monthlyTargetKg: e.target.value }))} />
+                </Field>
+              </div>
+
+              <div className="settings-divider" />
+
+              <div className="privacy-setting">
+                <div>
+                  <b>Community benchmark visibility</b>
+                  <p>Allow your aggregate emissions to contribute to the community average. Change this at any time.</p>
+                </div>
+                <label className="toggle">
+                  <input type="checkbox" checked={profileForm.goalVisibility} onChange={(e) => setProfileForm((v) => ({ ...v, goalVisibility: e.target.checked }))} />
+                  <span />
+                </label>
+              </div>
+
+              <div className="settings-divider" />
+
+              <div className="m3-privacy-options">
+                <div className="privacy-setting">
+                  <div>
+                    <b>Anonymous leaderboard participation</b>
+                    <p>Allow your alias and aggregated emissions to appear in the community top-50 ranking. This is separate from community benchmark sharing.</p>
+                  </div>
+                  <label className="toggle">
+                    <input type="checkbox" checked={profileForm.leaderboardOptIn} onChange={(e) => setProfileForm((v) => ({ ...v, leaderboardOptIn: e.target.checked }))} />
+                    <span />
+                  </label>
+                </div>
+
+                <div className="privacy-setting">
+                  <div>
+                    <b>Organisation reporting consent</b>
+                    <p>Allow your organisation administrator to include your employee-level emissions in internal reports. This does not make your data public.</p>
+                  </div>
+                  <label className="toggle">
+                    <input type="checkbox" checked={profileForm.organisationReportingOptIn} onChange={(e) => setProfileForm((v) => ({ ...v, organisationReportingOptIn: e.target.checked }))} />
+                    <span />
+                  </label>
+                </div>
+              </div>
+
+              <div className="preferences-footer">
+                <small>All three sharing choices are independent and disabled by default for new accounts.</small>
+                <Button type="submit" disabled={busy}>{busy ? "Saving…" : "Save preferences →"}</Button>
+              </div>
             </form>
-          </section>}
-          <section className="surface table-card">
-            <div className="surface-title activity-table-heading"><div><span className="kicker">ALL RECORDS</span><h2>Recorded activities <small className="count">{filteredActivities.length} / {activities.length}</small></h2></div>
-              <Button kind="secondary" onClick={exportActivities} disabled={!filteredActivities.length}>↓ Export CSV</Button>
-            </div>
-            <div className="activity-toolbar">
-              <label className="activity-search"><span>⌕</span><input type="search" placeholder="Search activities, category or date…" value={activitySearch} onChange={(e) => setActivitySearch(e.target.value)} /></label>
-              <label className="activity-category-filter"><span>Category</span><select value={activityCategory} onChange={(e) => setActivityCategory(e.target.value)}><option value="all">All categories</option><option value="transport">Transport</option><option value="electricity">Electricity</option><option value="food">Food</option><option value="shopping">Shopping</option></select></label>
-              {(activitySearch || activityCategory !== "all") && <button className="clear-filter" onClick={() => { setActivitySearch(""); setActivityCategory("all"); }}>Clear filters</button>}
-            </div>
-            <ActivityTable rows={filteredActivities} />
-            {!filteredActivities.length && activities.length > 0 && <div className="filter-empty">No records match those filters. Try a different search or clear the filters.</div>}
-          </section>
-        </>}
 
-        {page === "goals" && <>
-          <PageHeading kicker="TURN INTENT INTO ACTION" title="Your goals" subtitle="Set a reduction target and follow your emissions against a comparable baseline." />
-          <div className="goal-layout"><section className="surface goal-create"><div className="surface-title"><div><span className="kicker">NEW COMMITMENT</span><h2>Create a reduction goal</h2></div><span className="large-soft-icon">◎</span></div>
-            <form className="stack-form" onSubmit={submitGoal}>
-              <Field label="Target reduction" hint="Choose a target between 1% and 100%."><div className="input-suffix"><input type="number" min="1" max="100" step="1" required value={goalForm.targetReductionPct} onChange={(e) => setGoalForm((v) => ({ ...v, targetReductionPct: e.target.value }))} /><b>%</b></div></Field>
-              <Field label="Goal duration"><select value={goalForm.periodDays} onChange={(e) => setGoalForm((v) => ({ ...v, periodDays: e.target.value }))}><option value="7">7 days</option><option value="14">14 days</option><option value="30">30 days</option><option value="60">60 days</option><option value="90">90 days</option><option value="180">180 days</option><option value="365">365 days</option></select></Field>
-              <Field label="Start date"><input type="date" max={today()} value={goalForm.startDate} onChange={(e) => setGoalForm((v) => ({ ...v, startDate: e.target.value }))} /></Field>
-              <div className="goal-note">ⓘ Progress compares your activity during the goal period with the same-length period immediately before it.</div>
-              <Button type="submit" disabled={busy}>{busy ? "Creating…" : "Create goal →"}</Button>
-            </form></section>
-            <section><div className="section-subhead"><div><span className="kicker">YOUR COMMITMENTS</span><h2>Goal progress <small className="count">{goals.length}</small></h2></div></div>
-              {goals.length ? <ScrollStack useWindowScroll itemDistance={66} itemStackDistance={18} stackPosition="18%" itemScale={0.035} baseScale={0.97} dimAmount={0.16} blurAmount={0} smoothScroll={false} className="goal-scroll-stack">{goals.map((g) => <ScrollStackItem key={g.id} itemClassName="goal-stack-item"><GoalCard goal={g} /></ScrollStackItem>)}</ScrollStack> : <section className="surface"><Empty title="No goals yet" text="Create your first reduction goal to start measuring progress." /></section>}
+            <section className="surface account-card">
+              <span className="kicker">ACCOUNT DETAILS</span>
+              <h2>Account information</h2>
+              <div className="account-grid">
+                <div><span>Username</span><b>{profile?.username || username}</b></div>
+                <div><span>Email</span><b>{profile?.email || "—"}</b></div>
+                <div><span>Account role</span><b>{profile?.role || "USER"}</b></div>
+                <div><span>Member since</span><b>{dateLabel(profile?.createdAt)}</b></div>
+              </div>
             </section>
-          </div>
-        </>}
-
-        {page === "recommendations" && <>
-          <PageHeading kicker="PRACTICAL NEXT STEPS" title="Recommendations" subtitle="Suggestions based on categories contributing most to your recorded emissions over the last 30 days." action={<Button kind="secondary" onClick={refreshData}>↻ Refresh</Button>} />
-          {recommendations.length ? <AnimatedList items={recommendations.map((r) => ({ id: r.category, icon: CATEGORIES[r.category]?.symbol || "✳", title: r.title, description: r.action, meta: words(r.category), reason: r.reason }))} theme="dark" animation="slide" stagger={0.06} showGradients displayScrollbar width="100%" maxHeight={430} accentColor="#c6f27c" radius={14} gap={9} onItemSelect={(item) => setNotice(item.reason)} /> : <section className="surface"><Empty title="Recommendations will appear here" text="Log activities in transport, electricity, food or shopping. CarbonTrack will use those records to suggest practical changes." action={<Button onClick={() => { go("activity"); setShowActivityForm(true); }}>＋ Log activity</Button>} /></section>}
-        </>}
-
-        {page === "achievements" && <>
-          <PageHeading kicker="RECOGNISING YOUR MOMENTUM" title="Achievements" subtitle="Badges are awarded when your activity history reaches a milestone." />
-          <div className="surface achievement-summary"><div className="achievement-symbol">◇</div><div><span className="kicker">YOUR COLLECTION</span><h2>{badges.length} <small>of 3 badges earned</small></h2><p>Keep recording activities to unlock more milestones.</p></div><div className="achievement-meter"><div className="progress-track"><i style={{ width: Math.min(100, badges.length / 3 * 100) + "%" }} /></div><small>{Math.round(Math.min(100, badges.length / 3 * 100))}% completed</small></div></div>
-          <div className="badge-grid">{[["First Steps", "Log your first activity", "c"], ["Consistent Tracker", "Log ten activities", "⌁"], ["Carbon Cutter", "Record 10 kg CO₂e or more", "↗"]].map(([name, description, symbol]) => { const b = badges.find((x) => x.name === name); return <article className={"surface badge-card " + (b ? "earned" : "")} key={name}><span className="badge-art">{symbol}</span><div><span className="kicker">{b ? "UNLOCKED" : "MILESTONE"}</span><h3>{name}</h3><p>{description}</p>{b && <small>Earned {dateLabel(b.awardedAt)}</small>}</div><Tag>{b ? "✓ Earned" : "Not yet"}</Tag></article>; })}</div>
-        </>}
-
-        {page === "community" && <>
-          <PageHeading kicker="A SHARED VIEW OF PROGRESS" title="Community benchmark" subtitle="Compare your recorded emissions with the average among users who opted in to this comparison." />
-          <div className="community-grid"><section className="surface benchmark-card"><div className="surface-title"><div><span className="kicker">DATE-RANGE COMPARISON</span><h2>Your benchmark</h2></div><span className="large-soft-icon">◉</span></div>
-            <form className="benchmark-form" onSubmit={compare}><Field label="From"><input type="date" value={startDate} max={endDate} onChange={(e) => setStartDate(e.target.value)} required /></Field><Field label="To"><input type="date" value={endDate} min={startDate} max={today()} onChange={(e) => setEndDate(e.target.value)} required /></Field><Button type="submit" disabled={benchmarkBusy}>{benchmarkBusy ? "Comparing…" : "Compare →"}</Button></form>
-            {benchmark ? <><div className="benchmark-numbers"><div><span>Your emissions</span><b>{kg(benchmark.yourEmissionsKg)} <small>kg CO₂e</small></b></div><div><span>Community average</span><b>{kg(benchmark.communityAverageKg)} <small>kg CO₂e</small></b></div></div><div className="comparison-result"><b>{words(benchmark.comparison)}</b><span>{benchmark.participantCount} opted-in participants included.</span></div></> : <div className="benchmark-placeholder"><span>↗</span><b>Choose a date range to compare</b><p>The comparison uses only people who enabled benchmark visibility in their preferences.</p></div>}
-          </section><aside className="surface privacy-card"><span className="privacy-lock">▣</span><span className="kicker">YOUR DATA, YOUR CHOICE</span><h2>Participation is optional</h2><p>Only aggregate emissions contribute to the community average when you enable benchmark visibility. Your activity details are not shown to other users.</p><div className="privacy-state"><i className={profile?.goalVisibility ? "on" : ""} />{profile?.goalVisibility ? "Benchmark sharing is enabled" : "Benchmark sharing is disabled"}</div><Button kind="secondary" onClick={() => go("preferences")}>Manage privacy settings →</Button></aside></div>
-          {benchmark && benchmark.participantCount === 0 && <div className="alert alert-warning">No opted-in participants were found for this range. Enable visibility in Preferences and invite others to opt in.</div>}
-        </>}
-
-        {page === "leaderboard" && <LeaderboardPage profile={profile} onPreferences={() => go("preferences")} />}
-        {page === "organisation" && <OrganisationPage
-          profile={profile}
-          onProfileRefresh={async () => {
-            const nextProfile = await api.profile();
-            setProfile(nextProfile);
-            setUsername(nextProfile.username || username);
-            setProfileForm((current) => ({
-              ...current,
-              leaderboardOptIn: Boolean(nextProfile.leaderboardOptIn),
-              organisationReportingOptIn: Boolean(nextProfile.organisationReportingOptIn)
-            }));
-          }}
-        />}
-
-        {page === "preferences" && <>
-          <PageHeading kicker="MAKE CARBONTRACK YOURS" title="Preferences" subtitle="Set your monthly footprint target, sustainability preferences and independent data-sharing controls." />
-          <form className="surface preferences-card" onSubmit={submitProfile}><div className="surface-title"><div><span className="kicker">PERSONAL SETTINGS</span><h2>Your sustainability profile</h2></div><span className="large-soft-icon">⚙</span></div>
-            <div className="preferences-grid">
-              <Field label="Preferred transport"><select value={profileForm.preferredTransport} onChange={(e) => setProfileForm((v) => ({ ...v, preferredTransport: e.target.value }))}><option value="">Not specified</option><option value="walking">Walking</option><option value="cycling">Cycling</option><option value="public_transport">Public transport</option><option value="car">Car</option><option value="motorcycle">Motorcycle</option><option value="train">Train</option></select></Field>
-              <Field label="Diet preference"><select value={profileForm.dietPreference} onChange={(e) => setProfileForm((v) => ({ ...v, dietPreference: e.target.value }))}><option value="">Not specified</option><option value="omnivore">Omnivore</option><option value="vegetarian">Vegetarian</option><option value="vegan">Vegan</option><option value="pescatarian">Pescatarian</option></select></Field>
-              <Field label="Sustainability focus"><select value={profileForm.sustainabilityGoal} onChange={(e) => setProfileForm((v) => ({ ...v, sustainabilityGoal: e.target.value }))}><option value="">Not specified</option><option value="reduce_transport_emissions">Reduce transport emissions</option><option value="reduce_energy_use">Reduce energy use</option><option value="eat_more_plant_based">Eat more plant-based meals</option><option value="shop_consciously">Shop more consciously</option><option value="overall_reduction">Overall footprint reduction</option></select></Field>
-              <Field label="Measurement system"><div className="fixed-setting"><b>Metric system</b><span>kg · km · kWh</span></div></Field>
-              <Field label="Monthly CO₂e target (kg)" hint="Set your cumulative emissions budget for the current calendar month. Leave blank to remove it.">
-                <input type="number" min="0.01" max="9999999999.99" step="0.01" placeholder="e.g. 120.00" value={profileForm.monthlyTargetKg} onChange={(e) => setProfileForm((v) => ({ ...v, monthlyTargetKg: e.target.value }))} />
-              </Field>
-            </div><div className="settings-divider" /><div className="privacy-setting"><div><b>Community benchmark visibility</b><p>Allow your aggregate emissions to contribute to the community average. Change this at any time.</p></div><label className="toggle"><input type="checkbox" checked={profileForm.goalVisibility} onChange={(e) => setProfileForm((v) => ({ ...v, goalVisibility: e.target.checked }))} /><span /></label></div>
-            <div className="settings-divider" />
-      <div className="m3-privacy-options">
-        <div className="privacy-setting">
-          <div><b>Anonymous leaderboard participation</b><p>Allow your alias and aggregated emissions to appear in the community top-50 ranking. This is separate from community benchmark sharing.</p></div>
-          <label className="toggle"><input type="checkbox" checked={profileForm.leaderboardOptIn} onChange={(e) => setProfileForm((v) => ({ ...v, leaderboardOptIn: e.target.checked }))} /><span /></label>
-        </div>
-        <div className="privacy-setting">
-          <div><b>Organisation reporting consent</b><p>Allow your organisation administrator to include your employee-level emissions in internal reports. This does not make your data public.</p></div>
-          <label className="toggle"><input type="checkbox" checked={profileForm.organisationReportingOptIn} onChange={(e) => setProfileForm((v) => ({ ...v, organisationReportingOptIn: e.target.checked }))} /><span /></label>
-        </div>
-      </div>
-      <div className="preferences-footer"><small>All three sharing choices are independent and disabled by default for new accounts.</small><Button type="submit" disabled={busy}>{busy ? "Saving…" : "Save preferences →"}</Button></div>
-          </form>
-          <section className="surface account-card"><span className="kicker">ACCOUNT DETAILS</span><h2>Account information</h2><div className="account-grid"><div><span>Username</span><b>{profile?.username || username}</b></div><div><span>Email</span><b>{profile?.email || "—"}</b></div><div><span>Account role</span><b>{profile?.role || "USER"}</b></div><div><span>Member since</span><b>{dateLabel(profile?.createdAt)}</b></div></div></section>
-        </>}
+          </>}
         </FadeContent>
-        <footer className="page-footer"><b>CARBONTRACK</b><span>Measure what matters. Improve what you can.</span><button onClick={signOut}>Sign out ↗</button></footer>
+
+        <footer className="page-footer">
+          <b>CARBONTRACK</b>
+          <span>Measure what matters. Improve what you can.</span>
+          <button onClick={signOut}>Sign out ↗</button>
+        </footer>
       </div>
     </main>
-    {notice && <div className="toast"><span>✓</span>{notice}<button onClick={() => setNotice("")}>×</button></div>}
+
+    {notice && (
+      <div className="toast">
+        <span>✓</span>
+        {notice}
+        <button onClick={() => setNotice("")}>×</button>
+      </div>
+    )}
+
     <ChatAssistant />
   </div>;
 }
 
-export default App;
+export default App;          
