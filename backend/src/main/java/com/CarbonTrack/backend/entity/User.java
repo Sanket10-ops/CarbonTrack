@@ -12,7 +12,9 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "users")
@@ -52,6 +54,21 @@ public class User {
 
     @Column(name = "goal_visibility", nullable = false)
     private boolean goalVisibility = false;
+
+    @Column(name = "leaderboard_opt_in", nullable = false)
+    private boolean leaderboardOptIn = false;
+
+    @Column(name = "organisation_reporting_opt_in", nullable = false)
+    private boolean organisationReportingOptIn = false;
+
+    @Column(name = "organisation_membership_active", nullable = false)
+    private boolean organisationMembershipActive = true;
+
+    @Column(name = "organisation_left_at")
+    private LocalDate organisationLeftAt;
+
+    @Column(name = "monthly_target_kg", precision = 12, scale = 2)
+    private BigDecimal monthlyTargetKg;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -156,6 +173,35 @@ public class User {
 
     public void setGoalVisibility(boolean goalVisibility) {
         this.goalVisibility = goalVisibility;
+    }
+
+    public boolean isLeaderboardOptIn() {
+        return leaderboardOptIn;
+    }
+
+    public void setLeaderboardOptIn(boolean leaderboardOptIn) {
+        this.leaderboardOptIn = leaderboardOptIn;
+    }
+
+    public boolean isOrganisationReportingOptIn() {
+        return organisationReportingOptIn;
+    }
+
+    public void setOrganisationReportingOptIn(boolean organisationReportingOptIn) {
+        this.organisationReportingOptIn = organisationReportingOptIn;
+    }
+
+    public boolean isOrganisationMembershipActive() { return organisationMembershipActive; }
+    public void setOrganisationMembershipActive(boolean active) { this.organisationMembershipActive = active; }
+    public LocalDate getOrganisationLeftAt() { return organisationLeftAt; }
+    public void setOrganisationLeftAt(LocalDate date) { this.organisationLeftAt = date; }
+
+    public BigDecimal getMonthlyTargetKg() {
+        return monthlyTargetKg;
+    }
+
+    public void setMonthlyTargetKg(BigDecimal monthlyTargetKg) {
+        this.monthlyTargetKg = monthlyTargetKg;
     }
 
     public LocalDateTime getCreatedAt() {
