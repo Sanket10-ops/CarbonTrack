@@ -25,7 +25,7 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        # The checked-in lockfile was generated on Windows and omitted Rolldown's Linux optional binding.\n        # Resolve optional platform packages on the runner instead of trusting that platform-specific lock entry.\n        run: npm install --no-package-lock --include=optional
+        run: npm install --no-package-lock --include=optional
 
       - name: Build frontend
         run: npm run build

@@ -50,9 +50,9 @@ class OrganisationServiceTest {
         User alpha = mock(User.class);
         User higher = mock(User.class);
         Organisation organisation = mock(Organisation.class);
-        ActivityLog zuluLog = mock(ActivityLog.class);
-        ActivityLog alphaLog = mock(ActivityLog.class);
-        ActivityLog higherLog = mock(ActivityLog.class);
+        ActivityLog zuluLog = activity("5.00", "transport", LocalDate.now());
+        ActivityLog alphaLog = activity("5.00", "electricity", LocalDate.now());
+        ActivityLog higherLog = activity("9.00", "food", LocalDate.now());
 
         LocalDate to = LocalDate.now();
         LocalDate from = to.withDayOfMonth(1);
@@ -62,7 +62,6 @@ class OrganisationServiceTest {
         when(admin.getOrganisation()).thenReturn(organisation);
         when(organisation.getId()).thenReturn(25L);
         when(organisation.getName()).thenReturn("Example Org");
-
         when(users.findAllByOrganisation_Id(25L))
                 .thenReturn(List.of(zulu, higher, alpha));
         prepareReportingMember(zulu, 2L, "zulu");
@@ -71,21 +70,10 @@ class OrganisationServiceTest {
 
         when(activities.findByUserIdAndLogDateBetweenOrderByLogDateDesc(2L, from, to))
                 .thenReturn(List.of(zuluLog));
-        when(zuluLog.getCo2eKg()).thenReturn(new BigDecimal("5.00"));
-        when(zuluLog.getCategory()).thenReturn("transport");
-        when(zuluLog.getLogDate()).thenReturn(to);
-
         when(activities.findByUserIdAndLogDateBetweenOrderByLogDateDesc(3L, from, to))
                 .thenReturn(List.of(higherLog));
-        when(higherLog.getCo2eKg()).thenReturn(new BigDecimal("9.00"));
-        when(higherLog.getCategory()).thenReturn("food");
-        when(higherLog.getLogDate()).thenReturn(to);
-
         when(activities.findByUserIdAndLogDateBetweenOrderByLogDateDesc(4L, from, to))
                 .thenReturn(List.of(alphaLog));
-        when(alphaLog.getCo2eKg()).thenReturn(new BigDecimal("5.00"));
-        when(alphaLog.getCategory()).thenReturn("electricity");
-        when(alphaLog.getLogDate()).thenReturn(to);
 
         OrganisationService service = new OrganisationService(
                 organisations, users, activities);
@@ -112,26 +100,66 @@ class OrganisationServiceTest {
         when(admin.getOrganisation()).thenReturn(organisation);
         when(organisation.getId()).thenReturn(25L);
         when(organisation.getName()).thenReturn("Example Org");
-
         when(users.findAllByOrganisation_Id(25L))
                 .thenReturn(List.of(optedIn, optedOut));
         prepareReportingMember(optedIn, 10L, "opted-in");
         when(optedOut.isOrganisationReportingOptIn()).thenReturn(false);
         when(optedOut.isOrganisationMembershipActive()).thenReturn(true);
 
-        OrganisationService service = new OrganisationService(
-                organisations, users, activities);
         LocalDate to = LocalDate.now();
         LocalDate from = to.withDayOfMonth(1);
+        when(activities.findByUserIdAndLogDateBetweenOrderByLogDateDesc(10L, from, to))
+                .thenReturn(List.of());
 
+        OrganisationService service = new OrganisationService(
+                organisations, users, activities);
         var report = service.dashboard("admin", from, to);
 
         verify(users).findAllByOrganisation_Id(25L);
         assertEquals("Example Org", report.organisationName());
-        assertEquals(0, report.employees().size());
         assertEquals(BigDecimal.ZERO, report.totalCo2eKg());
+        assertEquals(1, report.employees().size());
+        assertEquals("opted-in", report.employees().get(0).username());
+        assertEquals(BigDecimal.ZERO, report.employees().get(0).totalCo2eKg());
         assertEquals(1, report.monthTrend().size());
         assertEquals(YearMonth.from(to).toString(), report.monthTrend().get(0).month());
+    }
+
+    @Test
+    void removedMemberActivityRemainsInReportsOnlyThroughLeavingDate() {
+        OrganisationRepository organisations = mock(OrganisationRepository.class);
+        UserRepository users = mock(UserRepository.class);
+        ActivityLogRepository activities = mock(ActivityLogRepository.class);
+        User admin = mock(User.class);
+        User formerMember = mock(User.class);
+        Organisation organisation = mock(Organisation.class);
+        LocalDate from = LocalDate.of(2026, 11, 1);
+        LocalDate leftAt = LocalDate.of(2026, 11, 10);
+        LocalDate to = LocalDate.of(2026, 11, 15);
+        ActivityLog log = activity("3.50", "transport", leftAt);
+
+        when(users.findByUsername("admin")).thenReturn(Optional.of(admin));
+        when(admin.getRole()).thenReturn("ORG_ADMIN");
+        when(admin.getOrganisation()).thenReturn(organisation);
+        when(organisation.getId()).thenReturn(25L);
+        when(organisation.getName()).thenReturn("Example Org");
+        when(users.findAllByOrganisation_Id(25L)).thenReturn(List.of(formerMember));
+        when(formerMember.isOrganisationReportingOptIn()).thenReturn(true);
+        when(formerMember.isOrganisationMembershipActive()).thenReturn(false);
+        when(formerMember.getOrganisationLeftAt()).thenReturn(leftAt);
+        when(formerMember.getId()).thenReturn(12L);
+        when(formerMember.getUsername()).thenReturn("former-member");
+        when(activities.findByUserIdAndLogDateBetweenOrderByLogDateDesc(12L, from, leftAt))
+                .thenReturn(List.of(log));
+
+        OrganisationService service = new OrganisationService(
+                organisations, users, activities);
+        var report = service.dashboard("admin", from, to);
+
+        verify(activities).findByUserIdAndLogDateBetweenOrderByLogDateDesc(12L, from, leftAt);
+        assertEquals(new BigDecimal("3.50"), report.totalCo2eKg());
+        assertEquals(1, report.employees().size());
+        assertEquals("former-member", report.employees().get(0).username());
     }
 
     private void prepareReportingMember(User member, Long id, String username) {
@@ -140,5 +168,13 @@ class OrganisationServiceTest {
         when(member.isOrganisationReportingOptIn()).thenReturn(true);
         when(member.isOrganisationMembershipActive()).thenReturn(true);
         when(member.getOrganisationLeftAt()).thenReturn(null);
+    }
+
+    private ActivityLog activity(String amount, String category, LocalDate date) {
+        ActivityLog activity = mock(ActivityLog.class);
+        when(activity.getCo2eKg()).thenReturn(new BigDecimal(amount));
+        when(activity.getCategory()).thenReturn(category);
+        when(activity.getLogDate()).thenReturn(date);
+        return activity;
     }
 }
