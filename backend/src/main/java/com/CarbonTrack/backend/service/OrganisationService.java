@@ -1,10 +1,13 @@
+
 package com.CarbonTrack.backend.service;
 
 import com.CarbonTrack.backend.dto.OrganisationDashboardResponse;
 import com.CarbonTrack.backend.entity.Organisation;
+import com.CarbonTrack.backend.entity.User;
 import com.CarbonTrack.backend.repository.ActivityLogRepository;
 import com.CarbonTrack.backend.repository.OrganisationRepository;
 import com.CarbonTrack.backend.repository.UserRepository;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +23,7 @@ import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -34,165 +38,354 @@ public class OrganisationService {
             OrganisationRepository organisations,
             UserRepository users,
             ActivityLogRepository activities) {
+
         this.organisations = organisations;
         this.users = users;
         this.activities = activities;
     }
 
+    // Create an organisation and make the creator its admin
     @Transactional
     public Organisation create(String username, String name) {
-        var admin = user(username);
+
+        User admin = user(username);
+
         if (admin.getOrganisation() != null) {
             throw new ResponseStatusException(
-                    HttpStatus.CONFLICT, "You already belong to an organisation");
-        }
-        if (name == null || name.isBlank() || name.trim().length() > 255) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A valid organisation name is required");
+                    HttpStatus.CONFLICT,
+                    "You already belong to an organisation");
         }
 
-        Organisation organisation = organisations.save(new Organisation(name.trim()));
+        if (name == null || name.isBlank() || name.trim().length() > 255) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "A valid organisation name is required");
+        }
+
+        Organisation organisation =
+                organisations.save(new Organisation(name.trim()));
+
         admin.setOrganisation(organisation);
         admin.setRole("ORG_ADMIN");
+
         users.save(admin);
+
         return organisation;
     }
 
+    // Add an existing user as an organisation member
     @Transactional
     public void addMember(String username, String email) {
-        var admin = requireAdmin(username);
-        var member = users.findByEmailIgnoreCase(email.trim())
+
+        User admin = requireAdmin(username);
+
+        User member = users.findByEmailIgnoreCase(email.trim())
                 .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "No account exists for that email"));
+                        HttpStatus.NOT_FOUND,
+                        "No account exists for that email"));
 
         if (member.getId().equals(admin.getId())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Admin is already a member");
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Admin is already a member");
         }
+
         if (member.getOrganisation() != null) {
             throw new ResponseStatusException(
-                    HttpStatus.CONFLICT, "That account already belongs to an organisation");
+                    HttpStatus.CONFLICT,
+                    "That account already belongs to an organisation");
+        }
+
+        if (!"USER".equals(member.getRole())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Only individual users can be added as members");
         }
 
         member.setOrganisation(admin.getOrganisation());
+        member.setRole("ORG_MEMBER");
+        member.setOrganisationMembershipActive(true);
+        member.setOrganisationLeftAt(null);
+
         users.save(member);
     }
 
+    // List current organisation members - admin only
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> members(String username) {
+        User admin = requireAdmin(username);
+        return users.findAllByOrganisation_IdAndOrganisationMembershipActiveTrue(
+                admin.getOrganisation().getId()).stream()
+                .map(member -> {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("username", member.getUsername());
+                    row.put("email", member.getEmail());
+                    row.put("role", member.getRole());
+                    row.put("reportingOptIn", member.isOrganisationReportingOptIn());
+                    row.put("admin", "ORG_ADMIN".equals(member.getRole()));
+                    return row;
+                }).toList();
+    }
+
+    // Deactivate membership but retain organisation link for historical reporting
+    @Transactional
+    public void removeMember(String username, String email) {
+        User admin = requireAdmin(username);
+        User member = users.findByEmailIgnoreCase(email.trim())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Member not found"));
+        if (!admin.getOrganisation().getId().equals(
+                member.getOrganisation() == null ? null : member.getOrganisation().getId()) ||
+                !member.isOrganisationMembershipActive() || "ORG_ADMIN".equals(member.getRole())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Active organisation member not found");
+        }
+        member.setOrganisationMembershipActive(false);
+        member.setOrganisationLeftAt(LocalDate.now());
+        member.setRole("USER");
+        users.save(member);
+    }
+
+    // Dashboard accessible to organisation admins and members
     @Transactional(readOnly = true)
     public OrganisationDashboardResponse dashboard(
-            String username, LocalDate from, LocalDate to) {
-        var admin = requireAdmin(username);
+            String username,
+            LocalDate from,
+            LocalDate to) {
+
+        User currentUser = requireOrganisationUser(username);
+
         validateRange(from, to);
 
-        var organisation = admin.getOrganisation();
-        // Employee-level and aggregate reporting only includes members who explicitly opted in.
+        Organisation organisation = currentUser.getOrganisation();
+
+        boolean isAdmin = "ORG_ADMIN".equals(currentUser.getRole());
+
+        // Include only employees who opted into organisation reporting
         var reportingMembers =
-                users.findAllByOrganisation_IdAndOrganisationReportingOptInTrue(organisation.getId());
+                users.findAllByOrganisation_Id(organisation.getId()).stream()
+                        .filter(User::isOrganisationReportingOptIn)
+                        .filter(member -> member.isOrganisationMembershipActive() ||
+                                (member.getOrganisationLeftAt() != null && !from.isAfter(member.getOrganisationLeftAt())))
+                        .toList();
 
         Map<String, BigDecimal> categories = new LinkedHashMap<>();
-        BigDecimal total = BigDecimal.ZERO;
-        Map<YearMonth, BigDecimal> months = new TreeMap<>();
-        initialiseMonthBuckets(months, from, to);
-        List<OrganisationDashboardResponse.EmployeeTotal> employeeRows = new ArrayList<>();
 
-        for (var member : reportingMembers) {
+        BigDecimal total = BigDecimal.ZERO;
+
+        Map<YearMonth, BigDecimal> months = new TreeMap<>();
+
+        initialiseMonthBuckets(months, from, to);
+
+        List<OrganisationDashboardResponse.EmployeeTotal> employeeRows =
+                new ArrayList<>();
+
+        for (User member : reportingMembers) {
+
+            LocalDate memberTo = member.getOrganisationLeftAt() == null
+                    ? to : (to.isBefore(member.getOrganisationLeftAt()) ? to : member.getOrganisationLeftAt());
+            if (memberTo.isBefore(from)) continue;
             var rows = activities.findByUserIdAndLogDateBetweenOrderByLogDateDesc(
-                    member.getId(), from, to);
-            Map<String, BigDecimal> memberCategories = new LinkedHashMap<>();
+                    member.getId(), from, memberTo);
+
+            Map<String, BigDecimal> memberCategories =
+                    new LinkedHashMap<>();
+
             BigDecimal memberTotal = BigDecimal.ZERO;
 
             for (var row : rows) {
+
                 BigDecimal value = row.getCo2eKg() == null
-                        ? BigDecimal.ZERO : row.getCo2eKg();
-                String category = row.getCategory().toLowerCase(java.util.Locale.ROOT);
+                        ? BigDecimal.ZERO
+                        : row.getCo2eKg();
+
+                String category = row.getCategory() == null
+                        ? "other"
+                        : row.getCategory().toLowerCase(Locale.ROOT);
+
                 memberTotal = memberTotal.add(value);
+
                 categories.merge(category, value, BigDecimal::add);
+
                 memberCategories.merge(category, value, BigDecimal::add);
-                months.merge(YearMonth.from(row.getLogDate()), value, BigDecimal::add);
+
+                months.merge(
+                        YearMonth.from(row.getLogDate()),
+                        value,
+                        BigDecimal::add);
             }
 
             total = total.add(memberTotal);
-            employeeRows.add(new OrganisationDashboardResponse.EmployeeTotal(
-                    member.getUsername(), memberTotal, memberCategories));
+
+            // Only admins can see employee-wise emission details
+            if (isAdmin) {
+                employeeRows.add(
+                        new OrganisationDashboardResponse.EmployeeTotal(
+                                member.getUsername(),
+                                memberTotal,
+                                memberCategories));
+            }
         }
 
-        employeeRows.sort(java.util.Comparator
-                .comparing(OrganisationDashboardResponse.EmployeeTotal::totalCo2eKg)
-                .thenComparing(OrganisationDashboardResponse.EmployeeTotal::username));
+        if (isAdmin) {
+            employeeRows.sort(
+                    java.util.Comparator
+                            .comparing(
+                                    OrganisationDashboardResponse.EmployeeTotal::totalCo2eKg)
+                            .thenComparing(
+                                    OrganisationDashboardResponse.EmployeeTotal::username));
+        }
 
-        List<OrganisationDashboardResponse.MonthlyTotal> trend = months.entrySet().stream()
-                .map(entry -> new OrganisationDashboardResponse.MonthlyTotal(
-                        entry.getKey().toString(), entry.getValue()))
-                .toList();
+        List<OrganisationDashboardResponse.MonthlyTotal> trend =
+                months.entrySet().stream()
+                        .map(entry ->
+                                new OrganisationDashboardResponse.MonthlyTotal(
+                                        entry.getKey().toString(),
+                                        entry.getValue()))
+                        .toList();
 
         return new OrganisationDashboardResponse(
-                organisation.getName(), from, to, total, categories, trend, employeeRows);
+                organisation.getName(),
+                from,
+                to,
+                total,
+                categories,
+                trend,
+                employeeRows);
     }
 
+    // Export organisation report as CSV - admin only
     @Transactional(readOnly = true)
-    public byte[] exportCsv(String username, LocalDate from, LocalDate to) {
-        OrganisationDashboardResponse data = dashboard(username, from, to);
+    public byte[] exportCsv(
+            String username,
+            LocalDate from,
+            LocalDate to) {
+
+        requireAdmin(username);
+
+        OrganisationDashboardResponse data =
+                dashboard(username, from, to);
+
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 
         try (PrintWriter writer = new PrintWriter(
                 new OutputStreamWriter(bytes, StandardCharsets.UTF_8))) {
-            writer.println("Organisation,From,To,Employee,Total CO2e kg,Transport,Electricity,Food,Shopping");
+
+            writer.println(
+                    "Organisation,From,To,Employee,Total CO2e kg,Transport,Electricity,Food,Shopping");
+
             for (var employee : data.employees()) {
+
                 writer.printf("%s,%s,%s,%s,%s,%s,%s,%s,%s%n",
                         csv(data.organisationName()),
                         data.from(),
                         data.to(),
                         csv(employee.username()),
                         employee.totalCo2eKg(),
-                        employee.byCategory().getOrDefault("transport", BigDecimal.ZERO),
-                        employee.byCategory().getOrDefault("electricity", BigDecimal.ZERO),
-                        employee.byCategory().getOrDefault("food", BigDecimal.ZERO),
-                        employee.byCategory().getOrDefault("shopping", BigDecimal.ZERO));
+                        employee.byCategory().getOrDefault(
+                                "transport", BigDecimal.ZERO),
+                        employee.byCategory().getOrDefault(
+                                "electricity", BigDecimal.ZERO),
+                        employee.byCategory().getOrDefault(
+                                "food", BigDecimal.ZERO),
+                        employee.byCategory().getOrDefault(
+                                "shopping", BigDecimal.ZERO));
             }
+
             writer.flush();
         }
+
         return bytes.toByteArray();
     }
 
+    // Initialise monthly totals with zero
     private void initialiseMonthBuckets(
-            Map<YearMonth, BigDecimal> months, LocalDate from, LocalDate to) {
+            Map<YearMonth, BigDecimal> months,
+            LocalDate from,
+            LocalDate to) {
+
         YearMonth current = YearMonth.from(from);
         YearMonth last = YearMonth.from(to);
+
         while (!current.isAfter(last)) {
+
             months.put(current, BigDecimal.ZERO);
+
             current = current.plusMonths(1);
         }
     }
 
+    // Escape CSV values and reduce spreadsheet formula injection risk
     private String csv(String value) {
+
         String safe = value == null ? "" : value;
+
         if (safe.stripLeading().matches("^[=+@-].*")) {
             safe = "'" + safe;
         }
+
         return "\"" + safe.replace("\"", "\"\"") + "\"";
     }
 
+    // Validate requested reporting date range
     private void validateRange(LocalDate from, LocalDate to) {
+
         if (from == null || to == null || to.isBefore(from)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid date range");
-        }
-        if (to.isAfter(LocalDate.now())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The end date cannot be in the future");
-        }
-        if (from.isBefore(to.minusYears(2))) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The report date range cannot exceed two years");
-        }
-    }
-
-    private com.CarbonTrack.backend.entity.User user(String username) {
-        return users.findByUsername(username).orElseThrow(() ->
-                new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
-    }
-
-    private com.CarbonTrack.backend.entity.User requireAdmin(String username) {
-        var admin = user(username);
-        if (!"ORG_ADMIN".equals(admin.getRole()) || admin.getOrganisation() == null) {
             throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN, "Organisation administrator access is required");
+                    HttpStatus.BAD_REQUEST,
+                    "Invalid date range");
         }
+
+        if (to.isAfter(LocalDate.now())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "The end date cannot be in the future");
+        }
+
+        if (from.isBefore(to.minusYears(2))) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "The report date range cannot exceed two years");
+        }
+    }
+
+    // Find authenticated user
+    private User user(String username) {
+
+        return users.findByUsername(username)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED,
+                        "User not found"));
+    }
+
+    // Allow organisation admins and members
+    private User requireOrganisationUser(String username) {
+
+        User currentUser = user(username);
+
+        if (currentUser.getOrganisation() == null ||
+                !("ORG_ADMIN".equals(currentUser.getRole()) ||
+                        "ORG_MEMBER".equals(currentUser.getRole()))) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Organisation access is required");
+        }
+
+        return currentUser;
+    }
+
+    // Admin-only access
+    private User requireAdmin(String username) {
+
+        User admin = user(username);
+
+        if (!"ORG_ADMIN".equals(admin.getRole()) ||
+                admin.getOrganisation() == null) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Organisation administrator access is required");
+        }
+
         return admin;
     }
 }

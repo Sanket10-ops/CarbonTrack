@@ -611,3 +611,220 @@ body:has(.app-shell){background:#070b0a!important;color:#e8f0e7!important;color-
   font-size: 100px;
   font-weight: 700;
 }
+
+
+/* =========================================
+   CARBONTRACK MOBILE RESPONSIVENESS FIX
+   ========================================= */
+
+/* Allow the application to use the full viewport */
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.app-shell {
+  min-height: 100dvh;
+  height: auto;
+  overflow: visible;
+}
+
+.main-area {
+  min-width: 0;
+  min-height: 100dvh;
+  height: auto;
+  overflow: visible;
+}
+
+.page-content {
+  min-width: 0;
+  height: auto;
+  overflow: visible;
+}
+
+/* Mobile layout */
+@media (max-width: 768px) {
+
+  .app-shell {
+    display: block;
+    width: 100%;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  /* Sidebar becomes a slide-out menu */
+  .sidebar {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(290px, 85vw);
+    height: 100dvh;
+    max-height: 100dvh;
+    z-index: 1001;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    transform: translateX(-110%);
+    transition: transform 0.3s ease;
+  }
+
+  .sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+
+  /* Dark background behind the open menu */
+  .mobile-scrim {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100dvh;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.65);
+    border: 0;
+  }
+
+  /* Main content uses the full screen */
+  .main-area {
+    width: 100%;
+    max-width: 100%;
+    min-height: 100dvh;
+    margin: 0;
+    overflow: visible;
+  }
+
+  .page-content {
+    width: 100%;
+    max-width: 100%;
+    padding: 18px 14px 40px;
+    overflow: visible;
+  }
+
+  /* Keep the top navigation accessible */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    width: 100%;
+    min-height: 60px;
+  }
+
+  .hamburger {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .topbar-left,
+  .topbar-right {
+    min-width: 0;
+    gap: 10px;
+  }
+
+  .topbar-right > span {
+    display: none;
+  }
+
+  /* Stack dashboard cards */
+  .metric-grid,
+  .overview-grid,
+  .m3-dashboard-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .dashboard-hero {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  /* Prevent tables and charts from expanding the screen */
+  .table-scroll {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .surface,
+  .metric,
+  .dashboard-hero,
+  .page-heading {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* Stack page heading and actions */
+  .page-heading {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  /* Prevent horizontal overflow */
+  img,
+  svg,
+  canvas {
+    max-width: 100%;
+  }
+}
+
+/* Smaller phones */
+@media (max-width: 480px) {
+  .page-content {
+    padding: 14px 10px 32px;
+  }
+
+  .topbar {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .topbar-right > b {
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .page-heading h1 {
+    font-size: clamp(25px, 8vw, 34px);
+  }
+
+  .metric-grid {
+    gap: 12px;
+  }
+
+  .surface {
+    padding: 16px;
+  }
+}
+
+/* SIDEBAR SCROLL FIX - DESKTOP AND MOBILE */
+.sidebar {
+  box-sizing: border-box !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  min-height: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #52634f transparent;
+}
+
+/* Keep sidebar scrolling on smaller screens too */
+@media (max-width: 768px) {
+  .sidebar {
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow-y: auto !important;
+  }
+}

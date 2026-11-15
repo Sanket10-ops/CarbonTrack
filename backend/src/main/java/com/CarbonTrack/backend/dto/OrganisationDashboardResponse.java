@@ -1,3 +1,4 @@
+
 package com.CarbonTrack.backend.dto;
 
 import java.math.BigDecimal;
@@ -14,7 +15,14 @@ public record OrganisationDashboardResponse(
         List<MonthlyTotal> monthTrend,
         List<EmployeeTotal> employees
 ) {
-    public record MonthlyTotal(String month, BigDecimal totalCo2eKg) {}
-    public record EmployeeTotal(String username, BigDecimal totalCo2eKg,
-                                Map<String, BigDecimal> byCategory) {}
+    public record MonthlyTotal(
+            String month,
+            BigDecimal totalCo2eKg
+    ) {}
+
+    public record EmployeeTotal(
+            String username,
+            BigDecimal totalCo2eKg,
+            Map<String, BigDecimal> byCategory
+    ) {}
 }

@@ -75,7 +75,7 @@ body{background:#f0f1e9!important;color:var(--ink)}
 .page-content table th,.page-content table td{border-bottom:1px solid #edf0e8!important}
 .page-content table tbody tr:hover{background:#f5f8ef!important}
 .page-content table tbody td{color:#526653!important;font-size:10px!important}
-.page-content input,.page-content select,.page-content textarea,.page-content .field input,.page-content .field select{border-color:#dce5d8!important;border-radius:10px!important;background:#fff!important}
+.page-content input,.page-content select,.page-content textarea,.page-content .field input,.page-content .field select{border-color:#dce5d8!important;border-radius:10px!important;background:#37b642!important}
 .page-content input:focus,.page-content select:focus,.page-content textarea:focus{border-color:#83aa75!important;box-shadow:0 0 0 3px #dcebd4!important}
 .tag{border:1px solid #dfe9d8!important;border-radius:999px!important;background:#edf4e7!important;color:#55734b!important}
 .progress-track{background:#e7eddf!important}
@@ -91,12 +91,12 @@ body{background:#f0f1e9!important;color:var(--ink)}
 .chat-assistant-launcher:hover{background:#163d2a!important}
 .chat-assistant-panel{border-radius:20px!important;box-shadow:0 24px 75px #173b2850!important}
 .page-content .m3-panel{padding:23px!important}
-.page-content .m3-category{border:1px solid #e2eadd!important;background:#f5f8ef!important;border-radius:12px!important}
+.page-content .m3-category{border:1px solid #e2eadd!important;background:#4d661b!important;border-radius:12px!important}
 .page-content .m3-metric{border-radius:15px!important}
-.page-content .quick-log-item{border-color:#e0e9da!important;border-radius:13px!important;background:#fbfcf8!important;transition:transform .2s,border-color .2s,box-shadow .2s!important}
+.page-content .quick-log-item{border-color:#e0e9da!important;border-radius:13px!important;background:#3f7b26!important;transition:transform .2s,border-color .2s,box-shadow .2s!important}
 .page-content .quick-log-item:hover{transform:translateY(-3px)!important;box-shadow:0 9px 22px #24492d12!important;border-color:#a9c99b!important}
 .page-content .activity-category-tabs button{border-radius:999px!important}
-.page-content .activity-category-tabs button.selected{background:#e8f2dc!important;color:#3e673c!important;border-color:#bdd5a9!important}
+.page-content .activity-category-tabs button.selected{background:#587c2d!important;color:#3e673c!important;border-color:#bdd5a9!important}
 .page-content .emission-preview{border-radius:13px!important;background:#f0f5e8!important;border-color:#dce8cf!important}
 .page-content .m3-consent-note{border-radius:15px!important}
 .page-content .m3-table td strong,.page-content .m3-table td b{color:#42683b!important}

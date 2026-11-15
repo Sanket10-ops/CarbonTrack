@@ -39,6 +39,18 @@ public class OrganisationController {
         return Map.of("message", "Member added");
     }
 
+    @GetMapping("/me/members")
+    public java.util.List<java.util.Map<String, Object>> members(@AuthenticationPrincipal Jwt jwt) {
+        return service.members(jwt.getSubject());
+    }
+
+    @DeleteMapping("/me/members")
+    public Map<String, String> removeMember(@AuthenticationPrincipal Jwt jwt,
+            @RequestParam String email) {
+        service.removeMember(jwt.getSubject(), email);
+        return Map.of("message", "Member removed. Historical emissions are retained up to the leaving date.");
+    }
+
     @GetMapping("/me/dashboard")
     public OrganisationDashboardResponse dashboard(@AuthenticationPrincipal Jwt jwt,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,

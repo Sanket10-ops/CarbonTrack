@@ -14,6 +14,7 @@ import jakarta.persistence.Table;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "users")
@@ -59,6 +60,12 @@ public class User {
 
     @Column(name = "organisation_reporting_opt_in", nullable = false)
     private boolean organisationReportingOptIn = false;
+
+    @Column(name = "organisation_membership_active", nullable = false)
+    private boolean organisationMembershipActive = true;
+
+    @Column(name = "organisation_left_at")
+    private LocalDate organisationLeftAt;
 
     @Column(name = "monthly_target_kg", precision = 12, scale = 2)
     private BigDecimal monthlyTargetKg;
@@ -183,6 +190,11 @@ public class User {
     public void setOrganisationReportingOptIn(boolean organisationReportingOptIn) {
         this.organisationReportingOptIn = organisationReportingOptIn;
     }
+
+    public boolean isOrganisationMembershipActive() { return organisationMembershipActive; }
+    public void setOrganisationMembershipActive(boolean active) { this.organisationMembershipActive = active; }
+    public LocalDate getOrganisationLeftAt() { return organisationLeftAt; }
+    public void setOrganisationLeftAt(LocalDate date) { this.organisationLeftAt = date; }
 
     public BigDecimal getMonthlyTargetKg() {
         return monthlyTargetKg;

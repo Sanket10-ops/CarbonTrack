@@ -99,6 +99,8 @@ export const api = {
     method: "POST",
     body: JSON.stringify({ email })
   }),
+  organisationMembers: () => request("/api/organisations/me/members"),
+  removeOrganisationMember: (email) => request(`/api/organisations/me/members?email=${encodeURIComponent(email)}`, { method: "DELETE" }),
   organisationDashboard: (from, to) => request(
     `/api/organisations/me/dashboard?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
   ),

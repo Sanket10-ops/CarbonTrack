@@ -18,6 +18,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     List<User> findAllByOrganisation_Id(Long organisationId);
 
+    List<User> findAllByOrganisation_IdAndOrganisationMembershipActiveTrue(Long organisationId);
+
     List<User> findAllByOrganisation_IdAndOrganisationReportingOptInTrue(Long organisationId);
 
     long countByGoalVisibilityTrue();
