@@ -1,7 +1,11 @@
 package com.CarbonTrack.backend.dto;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+
+import java.math.BigDecimal;
 
 public record UpdateUserProfileRequest(
 
@@ -20,7 +24,15 @@ public record UpdateUserProfileRequest(
         )
         String preferredUnits,
 
-        Boolean goalVisibility
+        Boolean goalVisibility,
+
+        Boolean leaderboardOptIn,
+
+        Boolean organisationReportingOptIn,
+
+        @DecimalMin(value = "0.01", message = "Monthly target must be greater than zero")
+        @Digits(integer = 10, fraction = 2, message = "Monthly target supports up to 2 decimal places")
+        BigDecimal monthlyTargetKg
 
 ) {
 }
